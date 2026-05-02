@@ -250,3 +250,15 @@ export async function uploadMapImage(uid, wid, base64) {
   await uploadString(storageRef, base64, 'data_url');
   return getDownloadURL(storageRef);
 }
+/** Salva le posizioni dei nodi del grafo connessioni */
+export async function saveGraphPositions(uid, wid, positions) {
+  await setDoc(doc(db, 'users', uid, 'worlds', wid, 'graph', 'positions'), { positions });
+}
+
+/** Legge le posizioni dei nodi */
+export async function getGraphPositions(uid, wid) {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid, 'worlds', wid, 'graph', 'positions'));
+    return snap.exists() ? snap.data().positions : {};
+  } catch { return {}; }
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useWorld } from '../hooks/useWorld';
 import Sidebar from './Sidebar';
@@ -27,18 +27,33 @@ const VIEWS = [
 ];
 
 export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
-  const { signOut }  = useAuth();
-  const { loading }  = useWorld();
+  const { signOut } = useAuth();
+  const { loading } = useWorld();
 
   const [curView,     setCurView]     = useState('world');
-  const [panel,       setPanel]       = useState(null); // { type: 'element'|'fazione'|'magia'|'arc', id }
+  const [panel,       setPanel]       = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [catModal, setCatModal] = useState(false);
+  const [catModal,    setCatModal]    = useState(false);
   const [toast,       setToast]       = useState(null);
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
-  const openPanel = (type, id) => setPanel({ type, id });
+  const showToast  = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
+  const openPanel  = (type, id) => setPanel({ type, id });
   const closePanel = () => setPanel(null);
+
+  // Tasto indietro Android/iOS — chiude il pannello invece di uscire
+  useEffect(() => {
+    if (panel) {
+      window.history.pushState({ panel: true }, '');
+    }
+  }, [panel]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (panel) closePanel();
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [panel]);
 
   const ActiveView = VIEWS.find(v => v.id === curView)?.component || WorldView;
 
@@ -96,6 +111,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
         />
       </div>
 
+      {/* Bottom nav mobile */}
       <nav className="mob-nav">
         <div className="mob-nav-inner">
           {VIEWS.map(v => (
@@ -107,7 +123,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
         </div>
       </nav>
 
-      {catModal && <CatModal onClose={() => setCatModal(false)} showToast={showToast} />}    
+      {catModal && <CatModal onClose={() => setCatModal(false)} showToast={showToast} />}
       {toast && <Toast message={toast} />}
     </div>
   );

@@ -57,6 +57,12 @@ export default function ElementCard({ element: el, onClick }) {
             ⚡ {el.powers.length} poter{el.powers.length !== 1 ? 'i' : 'e'}
           </div>
         )}
+        {/* Badge importanza */}
+        {el.importance && el.importance !== 'minore' && (
+  <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 4 }}>
+    {{ protagonista: '⭐⭐⭐ Protagonista', primario: '⭐⭐ Primario', secondario: '⭐ Secondario' }[el.importance]}
+  </div>
+)}
         {/* Badge stato */}
         {el.status && el.status !== 'draft' && (
           <span className={`status-badge ${STATUS_CLASSES[el.status] || ''}`} style={{ marginTop: 5 }}>

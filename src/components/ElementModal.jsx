@@ -20,6 +20,7 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
   const [extra,    setExtra]    = useState(initialData?.extra  || {});
   const [image,    setImage]    = useState(initialData?.image  || '');
   const [date, setDate] = useState(initialData?.date || '');
+  const [importance, setImportance] = useState(initialData?.importance || 'minore');
   const [tags,     setTags]     = useState(initialData?.tags   || []);
   const [tagQuery, setTagQuery] = useState('');
   const [tagOpen,  setTagOpen]  = useState(false);
@@ -68,6 +69,7 @@ const handleSave = () => {
   if (!name.trim()) { alert('Il nome è obbligatorio'); return; }
   const data = {
     cat, sub, name: name.trim(), status, desc, extra, image, tags, date,
+    importance,
     eventPlace: cat === 'event' ? eventPlace : null,
     eventEls:   cat === 'event' ? eventEls   : [],
     powers:    initialData?.powers    || [],
@@ -125,6 +127,31 @@ const handleSave = () => {
             <option value="done">✅ Definitivo</option>
           </select>
         </div>
+
+        <div className="fg">
+  <label className="fl">Importanza</label>
+  <div style={{ display: 'flex', gap: 8 }}>
+    {[
+      { value: 'protagonista', label: '⭐⭐⭐ Protagonista' },
+      { value: 'primario',     label: '⭐⭐ Primario' },
+      { value: 'secondario',   label: '⭐ Secondario' },
+      { value: 'minore',       label: '· Minore' },
+    ].map(opt => (
+      <button key={opt.value} type="button"
+        onClick={() => setImportance(opt.value)}
+        style={{
+          flex: 1, padding: '7px 4px', fontSize: 11,
+          background: importance === opt.value ? 'var(--gold-glow)' : 'var(--surface2)',
+          border: `1px solid ${importance === opt.value ? 'var(--gold-dim)' : 'var(--border)'}`,
+          color: importance === opt.value ? 'var(--gold)' : 'var(--text-muted)',
+          borderRadius: 'var(--r)', cursor: 'pointer', transition: 'all .2s',
+          fontFamily: "'Crimson Pro', serif",
+        }}>
+        {opt.label}
+      </button>
+    ))}
+  </div>
+</div>
 
         <div className="fg">
           <label className="fl">Descrizione</label>

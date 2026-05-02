@@ -5,6 +5,7 @@ import FazioneModal from './FazioneModal';
 import MagiaModal from './MagiaModal';
 import ArcModal from './ArcModal';
 
+// ── CHANGELOG TAB ──
 function ChangelogTab({ el, updateEl, elements, showToast }) {
   const luoghi = elements.filter(e => e.cat === 'place');
   const [newDate,  setNewDate]  = useState('');
@@ -82,6 +83,197 @@ function ChangelogTab({ el, updateEl, elements, showToast }) {
   );
 }
 
+// ── POWERS TAB ──
+function PowersTab({ el, updateEl, magie, showToast }) {
+  const [newName,  setNewName]  = useState('');
+  const [newDesc,  setNewDesc]  = useState('');
+  const [newMagia, setNewMagia] = useState('');
+  const [newInt,   setNewInt]   = useState('media');
+
+  const INTENSITA = [
+    { value: 'bassa',    label: '○ Bassa',    color: '#8fbd7c' },
+    { value: 'media',    label: '◑ Media',    color: '#d4a84c' },
+    { value: 'alta',     label: '● Alta',     color: '#d4956a' },
+    { value: 'assoluta', label: '⬟ Assoluta', color: '#c89fd4' },
+  ];
+
+  const intColor = (val) => INTENSITA.find(i => i.value === val)?.color || '#888';
+
+  const handleAdd = async () => {
+    if (!newName.trim()) return;
+    const newPower = { name: newName.trim(), desc: newDesc.trim(), magiaId: newMagia || null, intensita: newInt };
+    const updated = [...(el.powers || []), newPower];
+    await updateEl(el.id, { powers: updated });
+    setNewName(''); setNewDesc(''); setNewMagia(''); setNewInt('media');
+    showToast('✓ Potere aggiunto');
+  };
+
+  const handleDelete = async (i) => {
+    const updated = (el.powers || []).filter((_, idx) => idx !== i);
+    await updateEl(el.id, { powers: updated });
+    showToast('🗑 Potere rimosso');
+  };
+
+  return (
+    <div className="dp-sec">
+      <div className="dp-lbl">Poteri</div>
+
+      {(el.powers || []).length === 0 ? (
+        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13, padding: '8px 0' }}>
+          Nessun potere — aggiungine uno
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+          {(el.powers || []).map((p, i) => {
+            const magia = magie.find(m => m.id === p.magiaId);
+            return (
+              <div key={i} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: 'var(--text)', flex: 1 }}>{p.name}</span>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: intColor(p.intensita) + '22', color: intColor(p.intensita), border: `1px solid ${intColor(p.intensita)}44` }}>
+                    {INTENSITA.find(x => x.value === p.intensita)?.label || p.intensita}
+                  </span>
+                  <button onClick={() => handleDelete(i)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, opacity: .5, padding: '0 2px' }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = .5}>×</button>
+                </div>
+                {p.desc && <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: magia ? 6 : 0 }}>{p.desc}</div>}
+                {magia && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#1a3830', color: '#a0d0c0' }}>✨ {magia.name}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+        <div className="dp-lbl" style={{ marginBottom: 8 }}>Aggiungi potere</div>
+        <input className="fi" style={{ fontSize: 13, marginBottom: 6 }}
+          placeholder="Nome del potere…" value={newName} onChange={e => setNewName(e.target.value)} autoComplete="off" />
+        <textarea className="ft" style={{ fontSize: 13, minHeight: 55, marginBottom: 6 }}
+          placeholder="Descrizione…" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
+        <div className="dp-lbl" style={{ marginBottom: 5 }}>Intensità</div>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+          {INTENSITA.map(opt => (
+            <button key={opt.value} type="button" onClick={() => setNewInt(opt.value)}
+              style={{
+                flex: 1, padding: '5px 2px', fontSize: 10,
+                background: newInt === opt.value ? opt.color + '22' : 'var(--surface2)',
+                border: `1px solid ${newInt === opt.value ? opt.color : 'var(--border)'}`,
+                color: newInt === opt.value ? opt.color : 'var(--text-muted)',
+                borderRadius: 'var(--r)', cursor: 'pointer', transition: 'all .2s',
+                fontFamily: "'Crimson Pro', serif",
+              }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {magie.length > 0 && (
+          <select className="fs" style={{ fontSize: 13, marginBottom: 8 }} value={newMagia} onChange={e => setNewMagia(e.target.value)}>
+            <option value="">✨ Nessun sistema di magia</option>
+            {magie.map(m => <option key={m.id} value={m.id}>✨ {m.name}</option>)}
+          </select>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button className="btn-p" style={{ fontSize: 12, padding: '5px 14px' }} onClick={handleAdd}>+ Aggiungi</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── EQUIP TAB ──
+function EquipTab({ el, updateEl, elements, showToast }) {
+  const [query, setQuery] = useState('');
+  const [open,  setOpen]  = useState(false);
+
+  const oggetti  = elements.filter(e => e.cat === 'object');
+  const equipped = (el.equip || []).map(id => oggetti.find(o => o.id === id)).filter(Boolean);
+  const suggestions = query
+    ? oggetti.filter(o => !(el.equip || []).includes(o.id) && o.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
+    : [];
+
+  const handleAdd = async (objId) => {
+    const updated = [...(el.equip || []), objId];
+    await updateEl(el.id, { equip: updated, tags: [...new Set([...(el.tags || []), objId])] });
+    // Tag bidirezionale sull'oggetto
+    const obj = oggetti.find(o => o.id === objId);
+    if (obj && !(obj.tags || []).includes(el.id)) {
+      await updateEl(objId, { tags: [...(obj.tags || []), el.id] });
+    }
+    setQuery(''); setOpen(false);
+    showToast('✓ Oggetto equipaggiato');
+  };
+
+  const handleRemove = async (objId) => {
+    const updated = (el.equip || []).filter(id => id !== objId);
+    await updateEl(el.id, { equip: updated });
+    showToast('✓ Oggetto rimosso');
+  };
+
+  return (
+    <div className="dp-sec">
+      <div className="dp-lbl">Equipaggiamento</div>
+
+      {equipped.length === 0 ? (
+        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13, padding: '8px 0' }}>
+          Nessun oggetto equipaggiato
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+          {equipped.map(obj => (
+            <div key={obj.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '9px 12px' }}>
+              <span style={{ fontSize: 16 }}>📦</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, color: 'var(--text)', fontFamily: "'Playfair Display', serif" }}>{obj.name}</div>
+                {obj.desc && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>{obj.desc.length > 60 ? obj.desc.slice(0, 60) + '…' : obj.desc}</div>}
+              </div>
+              <button onClick={() => handleRemove(obj.id)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, opacity: .5 }}
+                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                onMouseLeave={e => e.currentTarget.style.opacity = .5}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+        <div className="dp-lbl" style={{ marginBottom: 8 }}>Aggiungi oggetto</div>
+        <div style={{ position: 'relative' }}>
+          <input className="fi" style={{ fontSize: 13, marginBottom: 0 }}
+            placeholder="Cerca tra gli oggetti…" value={query}
+            onChange={e => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            autoComplete="off" />
+          {open && suggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700 }}>
+              {suggestions.map(obj => (
+                <div key={obj.id} onMouseDown={() => handleAdd(obj.id)}
+                  style={{ padding: '9px 12px', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}>
+                  <span>📦</span>
+                  <div>
+                    <div style={{ color: 'var(--text)' }}>{obj.name}</div>
+                    {obj.desc && <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{obj.desc.length > 50 ? obj.desc.slice(0, 50) + '…' : obj.desc}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {oggetti.length === 0 && (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 6 }}>
+              Nessun oggetto nel mondo — creane uno prima
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN COMPONENT ──
 export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
   const {
     elById, elColor, elIcon, elLabel,
@@ -116,6 +308,8 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
 
     const TABS = [
       { id: 'info',      label: 'Scheda' },
+      { id: 'powers',    label: 'Poteri' },
+      { id: 'equip',     label: 'Equip.' },
       { id: 'changelog', label: 'Storico' },
       { id: 'notes',     label: 'Note' },
     ];
@@ -139,6 +333,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             </div>
           </div>
         </div>
+
         <div className="dp-tabs">
           {TABS.map(t => (
             <button key={t.id} className={`dp-tab ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>
@@ -146,6 +341,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             </button>
           ))}
         </div>
+
         <div className="dp-body">
           {activeTab === 'info' && (
             <>
@@ -209,6 +405,12 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
               )}
             </>
           )}
+          {activeTab === 'powers' && (
+            <PowersTab el={el} updateEl={updateEl} magie={magie} showToast={showToast} />
+          )}
+          {activeTab === 'equip' && (
+            <EquipTab el={el} updateEl={updateEl} elements={elements} showToast={showToast} />
+          )}
           {activeTab === 'changelog' && (
             <ChangelogTab el={el} updateEl={updateEl} elements={elements} showToast={showToast} />
           )}
@@ -220,45 +422,34 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             </>
           )}
         </div>
-       {editing && (
-  <ElementModal initialData={el}
-    onSave={async (data, birthDate) => {
-      await updateEl(el.id, data);
 
-      if (birthDate) {
-        await addEl({
-          cat: 'event', name: `Nascita di ${data.name}`,
-          desc: `${data.name} viene al mondo.`,
-          date: birthDate, tags: [el.id], status: 'done',
-          extra: {}, powers: [], equip: [], changelog: [], notes: '',
-        });
-      }
-
-      // Aggiorna storico elementi presenti all'evento
-      if (data.cat === 'event' && data.eventPlace && data.date && data.eventEls?.length) {
-        for (const elId of data.eventEls) {
-          const elTarget = elements.find(e => e.id === elId);
-          if (!elTarget) continue;
-          // Evita duplicati — non aggiungere se esiste già una voce con stessa data e luogo
-          const alreadyExists = (elTarget.changelog || []).some(
-            c => c.date === data.date && c.placeId === data.eventPlace
-          );
-          if (!alreadyExists) {
-            const newEntry = {
-              date:    data.date,
-              placeId: data.eventPlace,
-              text:    `Presente durante: ${data.name}`,
-            };
-            await updateEl(elId, { changelog: [...(elTarget.changelog || []), newEntry] });
-          }
-        }
-      }
-
-      setEditing(false);
-      showToast('✓ Elemento salvato');
-    }}
-    onClose={() => setEditing(false)} />
-)}
+        {editing && (
+          <ElementModal initialData={el}
+            onSave={async (data, birthDate) => {
+              await updateEl(el.id, data);
+              if (birthDate) {
+                await addEl({
+                  cat: 'event', name: `Nascita di ${data.name}`,
+                  desc: `${data.name} viene al mondo.`,
+                  date: birthDate, tags: [el.id], status: 'done',
+                  extra: {}, powers: [], equip: [], changelog: [], notes: '',
+                });
+              }
+              if (data.cat === 'event' && data.eventPlace && data.date && data.eventEls?.length) {
+                for (const elId of data.eventEls) {
+                  const elTarget = elements.find(e => e.id === elId);
+                  if (!elTarget) continue;
+                  const alreadyExists = (elTarget.changelog || []).some(c => c.date === data.date && c.placeId === data.eventPlace);
+                  if (!alreadyExists) {
+                    await updateEl(elId, { changelog: [...(elTarget.changelog || []), { date: data.date, placeId: data.eventPlace, text: `Presente durante: ${data.name}` }] });
+                  }
+                }
+              }
+              setEditing(false);
+              showToast('✓ Elemento salvato');
+            }}
+            onClose={() => setEditing(false)} />
+        )}
       </div>
     );
   }

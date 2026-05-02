@@ -888,4 +888,20 @@ body {
     height: 48px;
   }
   .mob-nav-inner button.active { color: var(--gold); }
+
+   .app-header {
+    padding: 0 10px;
+    gap: 6px;
+    overflow-x: auto;
+  }
+
+  .header-acts {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .header-acts .btn-sm {
+    font-size: 11px;
+    padding: 4px 7px;
+  }
 }

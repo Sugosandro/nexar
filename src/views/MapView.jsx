@@ -192,25 +192,33 @@ export default function MapView({ onOpenElement }) {
     } catch (err) { console.error(err); }
   };
 
-  const handleMapClick = (e) => {
-    if (!placing || !imgRef.current) return;
-    const rect = imgRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width)  * 100;
-    const y = ((e.clientY - rect.top)  / rect.height) * 100;
-    const luogo = luoghi.find(l => l.id === newPoiEl);
-    const poi = {
-      id:        Date.now(),
-      name:      newPoiName.trim() || luogo?.name || 'Luogo',
-      x, y,
-      elementId: newPoiEl || null,
-    };
-    const updated = [...pois, poi];
-    setPois(updated);
-    save(mapImage, updated);
-    setPlacing(false);
-    setNewPoiEl('');
-    setNewPoiName('');
+  const getEventCoords = (e) => {
+  if (e.touches && e.touches.length > 0) {
+    return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+  }
+  return { clientX: e.clientX, clientY: e.clientY };
+};
+
+const handleMapClick = (e) => {
+  if (!placing || !imgRef.current) return;
+  const { clientX, clientY } = getEventCoords(e);
+  const rect = imgRef.current.getBoundingClientRect();
+  const x = ((clientX - rect.left) / rect.width)  * 100;
+  const y = ((clientY - rect.top)  / rect.height) * 100;
+  const luogo = luoghi.find(l => l.id === newPoiEl);
+  const poi = {
+    id:        Date.now(),
+    name:      newPoiName.trim() || luogo?.name || 'Luogo',
+    x, y,
+    elementId: newPoiEl || null,
   };
+  const updated = [...pois, poi];
+  setPois(updated);
+  save(mapImage, updated);
+  setPlacing(false);
+  setNewPoiEl('');
+  setNewPoiName('');
+};
 
   const handleDeletePoi = async (id) => {
     const updated = pois.filter(p => p.id !== id);
@@ -387,10 +395,11 @@ trackEls.forEach(elId => {
       ) : (
         <div ref={wrapRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', borderRadius: 10, border: '1px solid var(--border)', cursor: placing ? 'crosshair' : 'default' }}>
           <img ref={imgRef} src={mapImage} alt="Mappa"
-            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', userSelect: 'none' }}
-            onClick={e => { handleMapClick(e); setSelected(null); }}
-            draggable={false}
-          />
+  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', userSelect: 'none' }}
+  onClick={handleMapClick}
+  onTouchEnd={e => { e.preventDefault(); handleMapClick(e.changedTouches[0] ? { ...e, clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY } : e); }}
+  draggable={false}
+/>
 
           {/* Linee tracciamento multi-elemento */}
 {trackPositions.length > 0 && (

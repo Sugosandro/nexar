@@ -60,7 +60,7 @@ export default function GlobalSearch({ onOpen }) {
   }, []);
 
   return (
-    <div style={{ position: 'relative', flex: 1, maxWidth: 320, minWidth: 180 }}>
+    <div style={{ position: 'relative', flex: 1, maxWidth: 320, minWidth: 0 }}>
       {/* Input */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 7,

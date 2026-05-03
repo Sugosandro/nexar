@@ -7,7 +7,8 @@
 import {
   collection, doc, getDocs, getDoc,
   addDoc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, serverTimestamp, query, orderBy
+  onSnapshot, serverTimestamp, query, orderBy,
+  arrayUnion, arrayRemove,
 } from 'firebase/firestore';
 import { db } from './config';
 
@@ -287,4 +288,35 @@ export async function getGraphPositions(uid, wid) {
     const snap = await getDoc(doc(db, 'users', uid, 'worlds', wid, 'graph', 'positions'));
     return snap.exists() ? snap.data().positions : {};
   } catch { return {}; }
+}
+
+// ══════════════════════════════════════════════
+// PROPOSTE ANALISI
+// ══════════════════════════════════════════════
+
+export function subscribeProposals(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'proposals'), orderBy('createdAt', 'desc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function saveProposals(uid, wid, proposals) {
+  // Salva ogni proposta come documento separato
+  const batch = proposals.map(p =>
+    addDoc(colRef(uid, wid, 'proposals'), {
+      ...p,
+      createdAt: serverTimestamp(),
+    })
+  );
+  await Promise.all(batch);
+}
+
+export async function deleteProposal(uid, wid, pid) {
+  await deleteDoc(docRef(uid, wid, 'proposals', pid));
+}
+
+export async function deleteAllProposals(uid, wid) {
+  const snap = await getDocs(colRef(uid, wid, 'proposals'));
+  await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
 }

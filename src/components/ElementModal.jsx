@@ -43,14 +43,6 @@ const evElSuggestions = evElQuery
     ).slice(0, 8)
   : [];
 
-  const tagSuggestions = tagQuery
-    ? elements.filter(e =>
-        e.id !== initialData?.id &&
-        !tags.includes(e.id) &&
-        e.name.toLowerCase().includes(tagQuery.toLowerCase())
-      ).slice(0, 8)
-    : [];
-
   const handleCatChange = (newCat) => { setCat(newCat); setSub(''); setExtra({}); };
   const setExtraField = (key, val) => setExtra(prev => ({ ...prev, [key]: val }));
 
@@ -275,47 +267,91 @@ const handleSave = () => {
           <input type="file" id="fImgInput" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
         </div>
 
-        <div className="fg">
+        <div className="fg" style={{ position: 'relative' }}>
           <label className="fl">Tag — collega ad altri elementi</label>
-          <div onClick={() => tagInputRef.current?.focus()} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text' }}>
+
+          {/* Chip selezionati + input ricerca */}
+          <div
+            onClick={() => { setTagOpen(true); tagInputRef.current?.focus(); }}
+            style={{ background: 'var(--surface2)', border: `1px solid ${tagOpen ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text', transition: 'border-color .15s' }}
+          >
             {tags.map(tid => {
               const el = elements.find(e => e.id === tid);
               if (!el) return null;
+              const catColor = cats.find(c => c.id === el.cat)?.color || '#888';
               return (
-                <span key={tid} style={{ background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span key={tid} style={{ background: 'var(--surface3)', border: `1px solid ${catColor}55`, borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, flexShrink: 0 }} />
                   {el.name}
                   <span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }} onClick={e => { e.stopPropagation(); removeTag(tid); }}>×</span>
                 </span>
               );
             })}
-            <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
-              <input ref={tagInputRef} type="text" placeholder={tags.length ? '' : 'Cerca elemento…'} value={tagQuery}
-                onChange={e => { setTagQuery(e.target.value); setTagOpen(true); }}
-                onFocus={() => setTagOpen(true)}
-                onBlur={() => setTimeout(() => setTagOpen(false), 150)}
-                onKeyDown={e => {
-                  if (e.key === 'Escape') setTagOpen(false);
-                  if (e.key === 'Backspace' && !tagQuery && tags.length) removeTag(tags[tags.length - 1]);
-                }}
-                autoComplete="off"
-                style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: '100%' }}
-              />
-              {tagOpen && tagSuggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 280, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700, overflow: 'hidden' }}>
-                  {tagSuggestions.map(el => (
-                    <div key={el.id} onMouseDown={() => addTag(el.id)}
-                      style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border)' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                      onMouseLeave={e => e.currentTarget.style.background = ''}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: cats.find(c => c.id === el.cat)?.color || '#888' }} />
-                      {el.name}
-                      <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>{cats.find(c => c.id === el.cat)?.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <input
+              ref={tagInputRef}
+              type="text"
+              placeholder={tags.length ? '' : 'Cerca o sfoglia…'}
+              value={tagQuery}
+              onChange={e => { setTagQuery(e.target.value); setTagOpen(true); }}
+              onFocus={() => setTagOpen(true)}
+              onBlur={() => setTimeout(() => setTagOpen(false), 200)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { setTagOpen(false); setTagQuery(''); }
+                if (e.key === 'Backspace' && !tagQuery && tags.length) removeTag(tags[tags.length - 1]);
+              }}
+              autoComplete="off"
+              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, flex: 1, minWidth: 120 }}
+            />
           </div>
+
+          {/* Dropdown raggruppato per categoria */}
+          {tagOpen && (() => {
+            const available = elements.filter(e =>
+              e.id !== initialData?.id &&
+              !tags.includes(e.id) &&
+              (tagQuery === '' || e.name.toLowerCase().includes(tagQuery.toLowerCase()))
+            );
+            const groups = cats
+              .map(c => ({ cat: c, items: available.filter(e => e.cat === c.id) }))
+              .filter(g => g.items.length > 0);
+
+            if (groups.length === 0) return (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 700, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                Nessun elemento trovato
+              </div>
+            );
+
+            return (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 700, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 28px rgba(0,0,0,.55)', maxHeight: 300, overflowY: 'auto' }}>
+                <div style={{ padding: '6px 12px 5px', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', letterSpacing: '.04em', textTransform: 'uppercase' }}>
+                  <span>{available.length} elementi disponibili</span>
+                  <span>backspace per rimuovere</span>
+                </div>
+                {groups.map(({ cat: c, items }) => (
+                  <div key={c.id}>
+                    <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: c.color, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, position: 'sticky', top: 0 }}>
+                      <span>{c.icon}</span>
+                      <span>{c.name}</span>
+                      <span style={{ marginLeft: 'auto', fontWeight: 400, opacity: .7 }}>{items.length}</span>
+                    </div>
+                    {items.map(el => (
+                      <div key={el.id} onMouseDown={() => addTag(el.id)}
+                        style={{ padding: '7px 12px 7px 22px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{el.name}</span>
+                        {el.sub && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>{el.sub}</span>}
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                          {el.importance === 'protagonista' ? '⭐⭐⭐' : el.importance === 'primario' ? '⭐⭐' : el.importance === 'secondario' ? '⭐' : '·'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="modal-actions">

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import {
   subscribeElements, subscribeArcs, subscribeFazioni,
   subscribeMagie, subscribeCats,
-  addElement, updateElement, deleteElement,
+  addElement, updateElement, deleteElement, syncBidirectionalTags,
   addArc, updateArc, deleteArc,
   addFazione, updateFazione, deleteFazione,
   addMagia, updateMagia, deleteMagia,
@@ -67,9 +67,23 @@ export function WorldProvider({ uid, wid, children }) {
   };
 
   // ── Azioni elementi ──
-  const addEl    = (data)         => addElement   (uid, wid, { powers: [], equip: [], changelog: [], tags: [], status: 'draft', ...data });
-  const updateEl = (eid, changes) => updateElement(uid, wid, eid, changes);
-  const deleteEl = (eid)          => deleteElement(uid, wid, eid);
+  const addEl = (data) =>
+    addElement(uid, wid, { powers: [], equip: [], changelog: [], tags: [], status: 'draft', ...data });
+
+  const updateEl = async (eid, changes) => {
+    // Se i tag cambiano, sincronizza i tag inversi sugli altri elementi
+    if ('tags' in changes) {
+      const current = elements.find(e => e.id === eid);
+      const oldTags = current?.tags || [];
+      const newTags = changes.tags || [];
+      await updateElement(uid, wid, eid, changes);
+      await syncBidirectionalTags(uid, wid, eid, oldTags, newTags);
+    } else {
+      await updateElement(uid, wid, eid, changes);
+    }
+  };
+
+  const deleteEl = (eid) => deleteElement(uid, wid, eid);
 
   // ── Azioni archi ──
   const addArcFn    = (data)         => addArc   (uid, wid, { members: [], phases: [], ...data });

@@ -90,6 +90,32 @@ export async function updateElement(uid, wid, eid, changes) {
   });
 }
 
+/**
+ * Sincronizza i tag bidirezionali dopo un salvataggio.
+ * Confronta oldTags vs newTags e aggiorna i tag inversi sugli altri elementi.
+ */
+export async function syncBidirectionalTags(uid, wid, elementId, oldTags = [], newTags = []) {
+  const added   = newTags.filter(id => !oldTags.includes(id));
+  const removed = oldTags.filter(id => !newTags.includes(id));
+
+  const ops = [
+    ...added.map(targetId =>
+      updateDoc(docRef(uid, wid, 'elements', targetId), {
+        tags: arrayUnion(elementId),
+        updatedAt: serverTimestamp(),
+      }).catch(() => {})
+    ),
+    ...removed.map(targetId =>
+      updateDoc(docRef(uid, wid, 'elements', targetId), {
+        tags: arrayRemove(elementId),
+        updatedAt: serverTimestamp(),
+      }).catch(() => {})
+    ),
+  ];
+
+  await Promise.all(ops);
+}
+
 /** Elimina un elemento */
 export async function deleteElement(uid, wid, eid) {
   await deleteDoc(docRef(uid, wid, 'elements', eid));

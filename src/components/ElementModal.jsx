@@ -18,7 +18,7 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
   const [status,   setStatus]   = useState(initialData?.status || 'draft');
   const [desc,     setDesc]     = useState(initialData?.desc   || '');
   const [extra,    setExtra]    = useState(initialData?.extra  || {});
-  const [image,    setImage]    = useState(initialData?.image  || '');
+  const [images,   setImages]   = useState(initialData?.images || (initialData?.image ? [initialData.image] : []));
   const [date, setDate] = useState(initialData?.date || '');
   const [importance, setImportance] = useState(initialData?.importance || 'minore');
   const [tags,     setTags]     = useState(initialData?.tags   || []);
@@ -31,9 +31,12 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
   const extraFields = EXTRA_FIELDS[cat] || [];
 
   const [eventPlace, setEventPlace] = useState(initialData?.eventPlace || '');
-const [eventEls,   setEventEls]   = useState(initialData?.eventEls   || []);
-const [evElQuery,  setEvElQuery]  = useState('');
-const [evElOpen,   setEvElOpen]   = useState(false);
+  const [eventEls,   setEventEls]   = useState(initialData?.eventEls   || []);
+  const [evElQuery,  setEvElQuery]  = useState('');
+  const [evElOpen,   setEvElOpen]   = useState(false);
+  const [eventType,  setEventType]  = useState(initialData?.eventType  || 'point'); // 'point' | 'range'
+  const [eventSide,  setEventSide]  = useState(initialData?.eventSide  || '');      // category id
+  const [dateEnd,    setDateEnd]    = useState(initialData?.dateEnd    || '');
 
 const evElSuggestions = evElQuery
   ? elements.filter(e =>
@@ -47,11 +50,13 @@ const evElSuggestions = evElQuery
   const setExtraField = (key, val) => setExtra(prev => ({ ...prev, [key]: val }));
 
   const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setImage(ev.target.result);
-    reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => setImages(prev => [...prev, ev.target.result]);
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
   };
 
   const addTag = (id) => { setTags(prev => [...prev, id]); setTagQuery(''); setTagOpen(false); tagInputRef.current?.focus(); };
@@ -60,10 +65,13 @@ const evElSuggestions = evElQuery
 const handleSave = () => {
   if (!name.trim()) { alert('Il nome è obbligatorio'); return; }
   const data = {
-    cat, sub, name: name.trim(), status, desc, extra, image, tags, date,
+    cat, sub, name: name.trim(), status, desc, extra, image: images[0] || '', images, tags, date,
     importance,
     eventPlace: cat === 'event' ? eventPlace : null,
     eventEls:   cat === 'event' ? eventEls   : [],
+    eventType:  cat === 'event' ? eventType  : null,
+    eventSide:  cat === 'event' ? eventSide  : null,
+    dateEnd:    cat === 'event' && eventType === 'range' ? dateEnd : null,
     powers:    initialData?.powers    || [],
     equip:     initialData?.equip     || [],
     changelog: initialData?.changelog || [],
@@ -166,6 +174,40 @@ const handleSave = () => {
     </div>
 
     <div className="fg">
+      <label className="fl">Tipo di evento</label>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[{ value: 'point', label: '◆ Puntuale' }, { value: 'range', label: '▬ Con durata' }].map(opt => (
+          <button key={opt.value} type="button" onClick={() => setEventType(opt.value)}
+            style={{ flex: 1, padding: '7px 4px', fontSize: 12, background: eventType === opt.value ? 'var(--gold-glow)' : 'var(--surface2)', border: `1px solid ${eventType === opt.value ? 'var(--gold-dim)' : 'var(--border)'}`, color: eventType === opt.value ? 'var(--gold)' : 'var(--text-muted)', borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: "'Crimson Pro', serif" }}>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {eventType === 'range' && (
+      <div className="fg">
+        <label className="fl">Data di fine</label>
+        <input className="fi" placeholder="GG/MM/AAAA" value={dateEnd}
+          onChange={e => {
+            let v = e.target.value.replace(/[^\d/]/g, '');
+            if (v.length === 2 && !v.includes('/')) v += '/';
+            if (v.length === 5 && v.split('/').length === 2) v += '/';
+            if (v.length > 10) v = v.slice(0, 10);
+            setDateEnd(v);
+          }} maxLength={10} autoComplete="off" />
+      </div>
+    )}
+
+    <div className="fg">
+      <label className="fl">Lato timeline (opzionale)</label>
+      <select className="fs" value={eventSide} onChange={e => setEventSide(e.target.value)}>
+        <option value="">— Nessun lato assegnato —</option>
+        {cats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+      </select>
+    </div>
+
+    <div className="fg">
       <label className="fl">Luogo dell'evento (opzionale)</label>
       <select className="fs" value={eventPlace} onChange={e => setEventPlace(e.target.value)}>
         <option value="">— Nessun luogo —</option>
@@ -252,19 +294,27 @@ const handleSave = () => {
 )}
 
         <div className="fg">
-          <label className="fl">Immagine (opzionale)</label>
-          {image ? (
-            <div style={{ marginBottom: 8 }}>
-              <img src={image} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 6 }} />
-              <button className="btn-g" style={{ marginTop: 5, fontSize: 11 }} onClick={() => setImage('')}>✕ Rimuovi</button>
-            </div>
-          ) : (
-            <div onClick={() => document.getElementById('fImgInput').click()} style={{ background: 'var(--surface2)', border: '1px dashed var(--border-light)', borderRadius: 6, padding: 16, textAlign: 'center', cursor: 'pointer', marginBottom: 8 }}>
-              <div style={{ fontSize: 24 }}>🖼</div>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Clicca per caricare un'immagine</p>
+          <label className="fl">Immagini (opzionale)</label>
+          {images.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+              {images.map((src, i) => (
+                <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+                  <img src={src} alt="" style={{ height: 80, width: 'auto', objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)' }} />
+                  <button
+                    onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))}
+                    style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,.7)', border: 'none', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                    ×
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-          <input type="file" id="fImgInput" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+          <div onClick={() => document.getElementById('fImgInput').click()}
+            style={{ background: 'var(--surface2)', border: '1px dashed var(--border-light)', borderRadius: 6, padding: 12, textAlign: 'center', cursor: 'pointer', marginBottom: 8 }}>
+            <div style={{ fontSize: 20 }}>🖼</div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{images.length ? '+ Aggiungi altra immagine' : 'Clicca per caricare immagini'}</p>
+          </div>
+          <input type="file" id="fImgInput" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
         </div>
 
         <div className="fg" style={{ position: 'relative' }}>

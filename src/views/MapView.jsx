@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useWorld } from '../hooks/useWorld';
 import { getMap, saveMap } from '../firebase/db';
 
@@ -219,7 +219,7 @@ export default function MapView({ onOpenElement }) {
     ? Object.fromEntries(pois.map(poi => [poi.id, getElementsAtPoiAtTime(poi, timeFilter)]))
     : {};
 
-  const trackPositions = (() => {
+  const trackPositions = useMemo(() => {
     if (!trackEls.size) return [];
     const results = [];
     let trackIndex = 0;
@@ -237,7 +237,7 @@ export default function MapView({ onOpenElement }) {
       if (positions.length) results.push({ elId, color, elName: el.name, positions });
     });
     return results;
-  })();
+  }, [trackEls, elements, pois, timeFilter]);
 
   if (loading) return <div className="view"><div className="view-loading"><span className="spin">✨</span> Caricamento mappa…</div></div>;
 
@@ -273,7 +273,7 @@ export default function MapView({ onOpenElement }) {
                     </div>
                     <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                       {elements
-                        .filter(e => e.cat !== 'place' && e.cat !== 'event' && (e.changelog || []).some(c => c.placeId))
+                        .filter(e => e.cat !== 'place' && e.cat !== 'event')
                         .filter(e => !trackQ || e.name.toLowerCase().includes(trackQ.toLowerCase()))
                         .map((el, idx) => {
                           const isSelected   = trackEls.has(el.id);

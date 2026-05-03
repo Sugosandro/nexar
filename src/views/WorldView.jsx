@@ -12,7 +12,7 @@ const IMPORTANCE_LABELS = {
 };
 
 export default function WorldView({ onOpenElement, showToast }) {
-  const { elements, allCats, arcs, addEl, updateEl } = useWorld();
+  const { elements, allCats, arcs, fazioni, addEl, updateEl } = useWorld();
 
   const [showModal,    setShowModal]    = useState(false);
   const [search,       setSearch]       = useState('');
@@ -21,6 +21,7 @@ export default function WorldView({ onOpenElement, showToast }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [arcFilter,    setArcFilter]    = useState('');
   const [impFilter,    setImpFilter]    = useState('');
+  const [fazFilter,    setFazFilter]    = useState('');
   const [viewMode,     setViewMode]     = useState('grid'); // grid | list
   const [sortBy,       setSortBy]       = useState('importance'); // importance | name | status
 
@@ -40,6 +41,10 @@ export default function WorldView({ onOpenElement, showToast }) {
   if (arcFilter) {
     const arc = arcs.find(a => a.id === arcFilter);
     if (arc) filtered = filtered.filter(e => (arc.members || []).includes(e.id));
+  }
+  if (fazFilter) {
+    const faz = fazioni.find(f => f.id === fazFilter);
+    if (faz) filtered = filtered.filter(e => (faz.members || []).includes(e.id));
   }
 
   // Ordina
@@ -78,7 +83,7 @@ export default function WorldView({ onOpenElement, showToast }) {
     return result;
   })();
 
-  const hasFilters = search || catFilter || subFilter || statusFilter || arcFilter || impFilter;
+  const hasFilters = search || catFilter || subFilter || statusFilter || arcFilter || impFilter || fazFilter;
 
   return (
     <div className="view">
@@ -170,11 +175,20 @@ export default function WorldView({ onOpenElement, showToast }) {
             </select>
           )}
 
+          {/* Fazione */}
+          {fazioni.length > 0 && (
+            <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }}
+              value={fazFilter} onChange={e => setFazFilter(e.target.value)}>
+              <option value="">Tutte le fazioni</option>
+              {fazioni.map(f => <option key={f.id} value={f.id}>⚔ {f.name}</option>)}
+            </select>
+          )}
+
           {/* Reset filtri */}
           {hasFilters && (
             <button className="btn-g" style={{ fontSize: 12 }} onClick={() => {
               setSearch(''); setCatFilter(''); setSubFilter('');
-              setStatusFilter(''); setArcFilter(''); setImpFilter('');
+              setStatusFilter(''); setArcFilter(''); setImpFilter(''); setFazFilter('');
             }}>
               ✕ Azzera filtri
             </button>

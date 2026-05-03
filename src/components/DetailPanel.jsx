@@ -189,9 +189,10 @@ function EquipTab({ el, updateEl, elements, showToast }) {
 
   const oggetti  = elements.filter(e => e.cat === 'object');
   const equipped = (el.equip || []).map(id => oggetti.find(o => o.id === id)).filter(Boolean);
-  const suggestions = query
-    ? oggetti.filter(o => !(el.equip || []).includes(o.id) && o.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
-    : [];
+  const suggestions = oggetti.filter(o =>
+    !(el.equip || []).includes(o.id) &&
+    (!query || o.name.toLowerCase().includes(query.toLowerCase()))
+  );
 
   const handleAdd = async (objId) => {
     const updated = [...(el.equip || []), objId];
@@ -244,7 +245,7 @@ function EquipTab({ el, updateEl, elements, showToast }) {
             placeholder="Cerca tra gli oggetti…" value={query}
             onChange={e => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onBlur={() => setTimeout(() => setOpen(false), 200)}
             autoComplete="off" />
           {open && suggestions.length > 0 && (
             <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700 }}>
@@ -267,6 +268,11 @@ function EquipTab({ el, updateEl, elements, showToast }) {
               Nessun oggetto nel mondo — creane uno prima
             </p>
           )}
+          {open && suggestions.length === 0 && oggetti.length > 0 && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', padding: '10px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Tutti gli oggetti sono già equipaggiati
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -287,6 +293,8 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
 
   const [activeTab,    setActiveTab]    = useState('info');
   const [editing,      setEditing]      = useState(false);
+  const [expandedTag,  setExpandedTag]  = useState(null);
+  const [lightboxImg,  setLightboxImg]  = useState(null);
   const [editingFaz,   setEditingFaz]   = useState(false);
   const [editingMagia, setEditingMagia] = useState(false);
   const [editingArc,   setEditingArc]   = useState(false);
@@ -345,7 +353,34 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
         <div className="dp-body">
           {activeTab === 'info' && (
             <>
-              {el.image && <img className="dp-img" src={el.image} alt="" />}
+              {/* Galleria immagini */}
+              {(() => {
+                const imgs = el.images?.length ? el.images : (el.image ? [el.image] : []);
+                if (!imgs.length) return null;
+                return (
+                  <div style={{ marginBottom: 16 }}>
+                    {imgs.length === 1 ? (
+                      <img src={imgs[0]} alt="" className="dp-img" style={{ cursor: 'zoom-in' }}
+                        onClick={() => setLightboxImg(imgs[0])} />
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                        {imgs.map((src, i) => (
+                          <img key={i} src={src} alt="" onClick={() => setLightboxImg(src)}
+                            style={{ height: 100, width: 'auto', borderRadius: 6, flexShrink: 0, objectFit: 'cover', cursor: 'zoom-in', border: '1px solid var(--border)', transition: 'opacity .2s' }}
+                            onMouseEnter={e => e.currentTarget.style.opacity = '.8'}
+                            onMouseLeave={e => e.currentTarget.style.opacity = '1'} />
+                        ))}
+                      </div>
+                    )}
+                    {lightboxImg && (
+                      <div onClick={() => setLightboxImg(null)}
+                        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
+                        <img src={lightboxImg} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="dp-sec">
                 <div className="dp-lbl">Descrizione</div>
                 <div className="dp-txt">{el.desc || <em style={{ opacity: .4 }}>—</em>}</div>
@@ -389,6 +424,48 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
                   </div>
                 </div>
               )}
+              {/* Tag collegati — espandibili */}
+              {(el.tags || []).length > 0 && (
+                <div className="dp-sec">
+                  <div className="dp-lbl">Tag collegati</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {(el.tags || []).map(tid => {
+                      const tagged = elements.find(e => e.id === tid);
+                      if (!tagged) return null;
+                      const tcolor = tagged.cat === 'char' ? '#7ab8d4' : tagged.cat === 'place' ? '#8fbd7c' : tagged.cat === 'object' ? '#d4956a' : tagged.cat === 'event' ? '#b88fc4' : '#888';
+                      const isExp  = expandedTag === tid;
+                      return (
+                        <div key={tid}>
+                          <div
+                            onClick={() => setExpandedTag(isExp ? null : tid)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--r)', background: isExp ? 'var(--surface2)' : 'var(--surface3)', border: `1px solid ${isExp ? tcolor + '66' : 'var(--border)'}`, cursor: 'pointer', transition: 'all .15s' }}
+                          >
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: tcolor, flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{tagged.name}</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              {tagged.cat === 'char' ? '👤' : tagged.cat === 'place' ? '📍' : tagged.cat === 'object' ? '📦' : '⚡'}
+                            </span>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)', transition: 'transform .15s', transform: isExp ? 'rotate(180deg)' : 'none' }}>▼</span>
+                          </div>
+                          {isExp && (
+                            <div style={{ margin: '2px 0 0 0', padding: '8px 12px', background: 'var(--surface2)', borderRadius: 'var(--r)', borderTop: `2px solid ${tcolor}44` }}>
+                              {tagged.desc
+                                ? <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 6 }}>{tagged.desc.length > 180 ? tagged.desc.slice(0, 180) + '…' : tagged.desc}</div>
+                                : <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nessuna descrizione</div>
+                              }
+                              <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }}
+                                onClick={e => { e.stopPropagation(); onOpen('element', tagged.id); }}>
+                                Apri scheda →
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {links.length > 0 && (
                 <div className="dp-sec">
                   <div className="dp-lbl">Citato in</div>

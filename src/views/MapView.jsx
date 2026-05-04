@@ -5,72 +5,40 @@ import { getMap, saveMap } from '../firebase/db';
 function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
   const [open,  setOpen]  = useState(false);
   const [query, setQuery] = useState('');
-
-  const filtered = query
-    ? dateEvents.filter(e =>
-        e.name.toLowerCase().includes(query.toLowerCase()) ||
-        e.date.includes(query)
-      )
-    : dateEvents;
-
+  const filtered = query ? dateEvents.filter(e => e.name.toLowerCase().includes(query.toLowerCase()) || e.date.includes(query)) : dateEvents;
   const selectedEvent = dateEvents.find(e => e.date === timeFilter);
-
   return (
     <div style={{ position: 'relative' }}>
-      <div
-        style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${open ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 200, cursor: 'pointer', transition: 'border-color .2s' }}
-        onClick={() => setOpen(o => !o)}
-      >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${open ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 200, cursor: 'pointer', transition: 'border-color .2s' }} onClick={() => setOpen(o => !o)}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>⏳</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           {timeFilter ? (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {selectedEvent && (
-                <span style={{ fontSize: 10, color: 'var(--gold)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {selectedEvent.name}
-                </span>
-              )}
+              {selectedEvent && <span style={{ fontSize: 10, color: 'var(--gold)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedEvent.name}</span>}
               <span style={{ fontSize: 12, color: 'var(--text)', fontFamily: "'Crimson Pro', serif" }}>{timeFilter}</span>
             </div>
           ) : (
             <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'Crimson Pro', serif" }}>Scegli un momento…</span>
           )}
         </div>
-        {timeFilter
-          ? <button onClick={e => { e.stopPropagation(); setTimeFilter(''); setQuery(''); }}
-              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✕</button>
-          : <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>▼</span>
-        }
+        {timeFilter ? <button onClick={e => { e.stopPropagation(); setTimeFilter(''); setQuery(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✕</button>
+          : <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>▼</span>}
       </div>
-
       {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 280, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }}
-          onMouseDown={e => e.stopPropagation()}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 280, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-            <input type="text" placeholder="Cerca evento o scrivi data…" value={query}
-              onChange={e => setQuery(e.target.value)} autoFocus
-              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
+            <input type="text" placeholder="Cerca evento o scrivi data…" value={query} onChange={e => setQuery(e.target.value)} autoFocus style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
           </div>
           <div style={{ maxHeight: 280, overflowY: 'auto' }}>
             {query && !filtered.find(e => e.date === query) && (
-              <div onClick={() => { setTimeFilter(query); setOpen(false); setQuery(''); }}
-                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                onMouseLeave={e => e.currentTarget.style.background = ''}>
+              <div onClick={() => { setTimeFilter(query); setOpen(false); setQuery(''); }} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
                 <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: 'var(--surface3)', color: 'var(--text-muted)' }}>Usa data</span>
                 <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: "'Crimson Pro', serif" }}>{query}</span>
               </div>
             )}
-            {filtered.length === 0 && !query && (
-              <div style={{ padding: '16px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
-                Nessun evento con data nella timeline
-              </div>
-            )}
+            {filtered.length === 0 && !query && <div style={{ padding: '16px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun evento con data nella timeline</div>}
             {filtered.map(ev => (
-              <div key={ev.id} onClick={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }}
-                style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: timeFilter === ev.date ? 'var(--surface2)' : '', transition: 'background .1s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                onMouseLeave={e => e.currentTarget.style.background = timeFilter === ev.date ? 'var(--surface2)' : ''}>
+              <div key={ev.id} onClick={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }} style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: timeFilter === ev.date ? 'var(--surface2)' : '' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'} onMouseLeave={e => e.currentTarget.style.background = timeFilter === ev.date ? 'var(--surface2)' : ''}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 14, flexShrink: 0 }}>⚡</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -93,20 +61,60 @@ function getTrackColor(index) { return TRACK_COLORS[index % TRACK_COLORS.length]
 
 export default function MapView({ onOpenElement }) {
   const { elements, elColor, elIcon, uid, wid } = useWorld();
-  const [mapImage,    setMapImage]    = useState('');
-  const [pois,        setPois]        = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [placing,     setPlacing]     = useState(false);
+  const [mapImage,   setMapImage]   = useState('');
+  const [pois,       setPois]       = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [placing,    setPlacing]    = useState(false);
   const [newPoiEl,    setNewPoiEl]    = useState('');
   const [newPoiName,  setNewPoiName]  = useState('');
-  const [pendingPoi,  setPendingPoi]  = useState(null);
-  const [selected,    setSelected]    = useState(null);
-  const [timeFilter,  setTimeFilter]  = useState('');
-  const [trackEls,    setTrackEls]    = useState(new Set());
-  const [trackQ,      setTrackQ]      = useState('');
-  const [trackOpen,   setTrackOpen]   = useState(false);
-  const imgRef  = useRef(null);
-  const wrapRef = useRef(null);
+  const [newPoiColor, setNewPoiColor] = useState('');
+  const [pendingPoi, setPendingPoi] = useState(null);
+  const [selected,   setSelected]   = useState(null);
+  const [timeFilter, setTimeFilter] = useState('');
+  const [trackEls,   setTrackEls]   = useState(new Set());
+  const [trackQ,     setTrackQ]     = useState('');
+  const [trackOpen,  setTrackOpen]  = useState(false);
+
+  // ── Zoom / Pan ──
+  // Tutto avviene tramite refs per evitare re-render durante il movimento
+  const wrapRef    = useRef(null);
+  const imgRef     = useRef(null);
+  const transform  = useRef({ x: 0, y: 0, scale: 1 });
+  const layerRef   = useRef(null);
+  const drag       = useRef(null); // { startX, startY, originX, originY }
+  const didDrag    = useRef(false);
+  const [, forceUpdate] = useState(0); // usato solo per re-render dopo reset
+
+  // Area effettiva dell'immagine nel layer (compensando objectFit:contain)
+  const [imgArea, setImgArea] = useState({ left: 0, top: 0, w: 1, h: 1 });
+
+  const calcImgArea = () => {
+    const img  = imgRef.current;
+    const wrap = wrapRef.current;
+    if (!img || !wrap || !img.naturalWidth) return;
+    const wW = wrap.clientWidth;
+    const wH = wrap.clientHeight;
+    const natAsp = img.naturalWidth / img.naturalHeight;
+    const boxAsp = wW / wH;
+    let iW, iH, iL, iT;
+    if (natAsp > boxAsp) { iW = wW; iH = wW / natAsp; iL = 0; iT = (wH - iH) / 2; }
+    else                  { iH = wH; iW = wH * natAsp; iL = (wW - iW) / 2; iT = 0; }
+    setImgArea({ left: iL, top: iT, w: iW, h: iH });
+  };
+
+  // Ricalcola quando il wrapper cambia dimensione
+  useEffect(() => {
+    const ro = new ResizeObserver(calcImgArea);
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, [mapImage]);
+
+  // Applica trasformazione direttamente al DOM (nessun re-render React)
+  const applyTransform = () => {
+    if (!layerRef.current) return;
+    const { x, y, scale } = transform.current;
+    layerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+  };
 
   const luoghi = elements.filter(e => e.cat === 'place');
   const dateEvents = elements.filter(e => e.cat === 'event' && e.date).sort((a, b) => a.date.localeCompare(b.date));
@@ -137,63 +145,157 @@ export default function MapView({ onOpenElement }) {
     } catch (err) { console.error(err); }
   };
 
-  // Calcola coordinate precise tenendo conto di objectFit: contain
+  // ── Converti click viewport → percentuale sull'immagine ──
+  // Usa imgArea (coordinate locali nel layer pre-trasformazione) + inverte zoom/pan.
   const getMapCoords = (clientX, clientY) => {
-  const img = imgRef.current;
-  if (!img) return null;
-  const rect = img.getBoundingClientRect();
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    const wRect = wrap.getBoundingClientRect();
+    const t = transform.current;
+    // Coordinate locali nel wrapper
+    const localX = clientX - wRect.left;
+    const localY = clientY - wRect.top;
+    // Inverti trasformazione: translate poi scale (origin 0,0)
+    const preX = (localX - t.x) / t.scale;
+    const preY = (localY - t.y) / t.scale;
+    // Converti in % rispetto all'area immagine reale
+    const x = ((preX - imgArea.left) / imgArea.w) * 100;
+    const y = ((preY - imgArea.top)  / imgArea.h) * 100;
+    if (x < 0 || x > 100 || y < 0 || y > 100) return null;
+    return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
+  };
 
-  const imgNatW   = img.naturalWidth  || rect.width;
-  const imgNatH   = img.naturalHeight || rect.height;
-  const imgAspect = imgNatW / imgNatH;
-  const boxAspect = rect.width / rect.height;
+  // ── Handlers zoom/pan ──
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const rect   = wrap.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const factor = e.deltaY > 0 ? 0.85 : 1.18;
+    const t      = transform.current;
+    const newScale = Math.min(Math.max(t.scale * factor, 0.4), 10);
+    transform.current = {
+      scale: newScale,
+      x: mouseX - (mouseX - t.x) * (newScale / t.scale),
+      y: mouseY - (mouseY - t.y) * (newScale / t.scale),
+    };
+    applyTransform();
+  };
 
-  let imgW, imgH, imgLeft, imgTop;
-  if (imgAspect > boxAspect) {
-    imgW = rect.width;  imgH = rect.width / imgAspect;
-    imgLeft = 0;        imgTop = (rect.height - imgH) / 2;
-  } else {
-    imgH = rect.height; imgW = rect.height * imgAspect;
-    imgLeft = (rect.width - imgW) / 2; imgTop = 0;
-  }
+  const handleMouseDown = (e) => {
+    if (e.button !== 0) return;
+    didDrag.current = false;
+    drag.current = {
+      startX: e.clientX, startY: e.clientY,
+      originX: transform.current.x, originY: transform.current.y,
+    };
+    if (!placing && wrapRef.current) wrapRef.current.style.cursor = 'grabbing';
+  };
 
-  // Usa le coordinate relative al rect (già in viewport coords)
-  const relX = clientX - rect.left;
-  const relY = clientY - rect.top;
+  const handleMouseMove = (e) => {
+    if (!drag.current) return;
+    const dx = e.clientX - drag.current.startX;
+    const dy = e.clientY - drag.current.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
+    if (!placing) {
+      transform.current.x = drag.current.originX + dx;
+      transform.current.y = drag.current.originY + dy;
+      applyTransform();
+    }
+  };
 
-  const x = ((relX - imgLeft) / imgW) * 100;
-  const y = ((relY - imgTop)  / imgH) * 100;
+  const handleMouseUp = (e) => {
+    if (wrapRef.current) wrapRef.current.style.cursor = placing ? 'crosshair' : 'grab';
+    if (!didDrag.current && placing && e.button === 0) {
+      const coords = getMapCoords(e.clientX, e.clientY);
+      if (coords) { setPendingPoi(coords); setPlacing(false); }
+    }
+    drag.current = null;
+  };
 
-  if (x < 0 || x > 100 || y < 0 || y > 100) return null;
-  return { x, y };
-};
+  // Touch
+  const lastPinch = useRef(null);
 
-  const handleMapClick = (e) => {
-    if (!placing || !imgRef.current) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const coords = getMapCoords(clientX, clientY);
-    if (!coords) return;
-    setPendingPoi(coords);
-    setPlacing(false);
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    // passive:false necessario per poter chiamare preventDefault sul wheel
+    wrap.addEventListener('wheel', handleWheel, { passive: false });
+    return () => wrap.removeEventListener('wheel', handleWheel);
+  });  // nessuna dipendenza: ri-registra ad ogni render, sempre l'handler aggiornato
+  const handleTouchStart = (e) => {
+    didDrag.current = false;
+    if (e.touches.length === 1) {
+      drag.current = {
+        startX: e.touches[0].clientX, startY: e.touches[0].clientY,
+        originX: transform.current.x, originY: transform.current.y,
+      };
+    }
+    if (e.touches.length === 2) {
+      drag.current = null;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastPinch.current = { dist: Math.hypot(dx, dy), originScale: transform.current.scale };
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1 && drag.current) {
+      const dx = e.touches[0].clientX - drag.current.startX;
+      const dy = e.touches[0].clientY - drag.current.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
+      if (!placing) {
+        transform.current.x = drag.current.originX + dx;
+        transform.current.y = drag.current.originY + dy;
+        applyTransform();
+      }
+    }
+    if (e.touches.length === 2 && lastPinch.current) {
+      const dx   = e.touches[0].clientX - e.touches[1].clientX;
+      const dy   = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      const rect   = wrap.getBoundingClientRect();
+      const cx     = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+      const cy     = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+      const newScale = Math.min(Math.max(lastPinch.current.originScale * dist / lastPinch.current.dist, 0.4), 10);
+      const t = transform.current;
+      transform.current = {
+        scale: newScale,
+        x: cx - (cx - t.x) * (newScale / t.scale),
+        y: cy - (cy - t.y) * (newScale / t.scale),
+      };
+      applyTransform();
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (placing && !didDrag.current && e.changedTouches.length > 0) {
+      const coords = getMapCoords(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      if (coords) { setPendingPoi(coords); setPlacing(false); }
+    }
+    drag.current = null;
+    lastPinch.current = null;
+  };
+
+  const resetView = () => {
+    transform.current = { x: 0, y: 0, scale: 1 };
+    applyTransform();
+    forceUpdate(n => n + 1);
   };
 
   const confirmPoi = () => {
     if (!pendingPoi) return;
     const luogo = luoghi.find(l => l.id === newPoiEl);
-    const poi = {
-      id:        Date.now(),
-      name:      newPoiName.trim() || luogo?.name || 'Punto',
-      x:         pendingPoi.x,
-      y:         pendingPoi.y,
-      elementId: newPoiEl || null,
-    };
+    const poi = { id: Date.now(), name: newPoiName.trim() || luogo?.name || 'Punto', x: pendingPoi.x, y: pendingPoi.y, elementId: newPoiEl || null, color: newPoiColor || null };
     const updated = [...pois, poi];
     setPois(updated);
     save(mapImage, updated);
-    setPendingPoi(null);
-    setNewPoiEl('');
-    setNewPoiName('');
+    setPendingPoi(null); setNewPoiEl(''); setNewPoiName(''); setNewPoiColor('');
   };
 
   const handleDeletePoi = async (id) => {
@@ -242,56 +344,46 @@ export default function MapView({ onOpenElement }) {
   if (loading) return <div className="view"><div className="view-loading"><span className="spin">✨</span> Caricamento mappa…</div></div>;
 
   return (
-    <div className="view" style={{ padding: '20px 24px', height: 'calc(100vh - 54px)', display: 'flex', flexDirection: 'column' }}>
-      <div className="view-hd" style={{ marginBottom: 12, flexShrink: 0 }}>
+    <div className="view map-view" style={{ padding: '20px 24px', height: 'calc(100vh - 54px)', display: 'flex', flexDirection: 'column' }}>
+      <div className="view-hd" style={{ marginBottom: 12, flexShrink: 0, flexWrap: 'wrap', gap: 8 }}>
         <div className="view-title">🗺 <span>Mappa</span></div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {mapImage && (
             <>
               <DateFilterPicker timeFilter={timeFilter} setTimeFilter={setTimeFilter} dateEvents={dateEvents} />
 
               {/* Traccia elementi */}
               <div style={{ position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${trackOpen ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 180, cursor: 'pointer' }}
-                  onClick={() => setTrackOpen(o => !o)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${trackOpen ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 180, cursor: 'pointer' }} onClick={() => setTrackOpen(o => !o)}>
                   <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>👤</span>
                   <span style={{ fontSize: 12, color: trackEls.size ? 'var(--text)' : 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", flex: 1 }}>
                     {trackEls.size ? `${trackEls.size} element${trackEls.size !== 1 ? 'i' : 'o'} tracciati` : 'Traccia elementi…'}
                   </span>
                   {trackEls.size > 0
                     ? <button onClick={e => { e.stopPropagation(); setTrackEls(new Set()); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>
-                    : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>▼</span>
-                  }
+                    : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>▼</span>}
                 </div>
                 {trackOpen && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 260, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }}
-                    onMouseDown={e => e.stopPropagation()}>
+                  <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 260, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
                     <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-                      <input type="text" placeholder="Cerca elemento…" value={trackQ}
-                        onChange={e => setTrackQ(e.target.value)} autoFocus
-                        style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
+                      <input type="text" placeholder="Cerca elemento…" value={trackQ} onChange={e => setTrackQ(e.target.value)} autoFocus style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
                     </div>
                     <div style={{ maxHeight: 240, overflowY: 'auto' }}>
-                      {elements
-                        .filter(e => e.cat !== 'place' && e.cat !== 'event')
-                        .filter(e => !trackQ || e.name.toLowerCase().includes(trackQ.toLowerCase()))
-                        .map((el, idx) => {
-                          const isSelected   = trackEls.has(el.id);
-                          const selectedIndex = [...trackEls].indexOf(el.id);
-                          const color        = isSelected ? getTrackColor(selectedIndex) : 'var(--border)';
-                          return (
-                            <div key={el.id}
-                              onClick={() => setTrackEls(prev => { const next = new Set(prev); isSelected ? next.delete(el.id) : next.add(el.id); return next; })}
-                              style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: isSelected ? color + '11' : '' }}
-                              onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface2)'; }}
-                              onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = ''; }}>
-                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: isSelected ? color : 'var(--border)', flexShrink: 0 }} />
-                              <span style={{ fontSize: 13, color: isSelected ? 'var(--text)' : 'var(--text-dim)', flex: 1 }}>{elIcon(el)} {el.name}</span>
-                              {isSelected && <span style={{ fontSize: 11, color }}>✓</span>}
-                            </div>
-                          );
-                        })
-                      }
+                      {elements.filter(e => e.cat !== 'place' && e.cat !== 'event').filter(e => !trackQ || e.name.toLowerCase().includes(trackQ.toLowerCase())).map((el, idx) => {
+                        const isSelected = trackEls.has(el.id);
+                        const selectedIndex = [...trackEls].indexOf(el.id);
+                        const color = isSelected ? getTrackColor(selectedIndex) : 'var(--border)';
+                        return (
+                          <div key={el.id} onClick={() => setTrackEls(prev => { const next = new Set(prev); isSelected ? next.delete(el.id) : next.add(el.id); return next; })}
+                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: isSelected ? color + '11' : '' }}
+                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface2)'; }}
+                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = ''; }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: isSelected ? color : 'var(--border)', flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: isSelected ? 'var(--text)' : 'var(--text-dim)', flex: 1 }}>{elIcon(el)} {el.name}</span>
+                            {isSelected && <span style={{ fontSize: 11, color }}>✓</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                     {trackEls.size > 0 && (
                       <div style={{ padding: '6px 12px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -303,18 +395,12 @@ export default function MapView({ onOpenElement }) {
                 )}
               </div>
 
-              {/* Pulsante aggiungi POI */}
               <button className="btn-p" onClick={() => setPlacing(p => !p)}>
                 {placing ? '✕ Annulla' : '+ Aggiungi luogo'}
               </button>
-              {placing && (
-                <span style={{ fontSize: 12, color: 'var(--gold)', fontStyle: 'italic' }}>
-                  Clicca sulla mappa per posizionare →
-                </span>
-              )}
+              {placing && <span style={{ fontSize: 12, color: 'var(--gold)', fontStyle: 'italic' }}>Clicca sulla mappa →</span>}
             </>
           )}
-
           <label className="btn-sm" style={{ cursor: 'pointer' }}>
             🖼 {mapImage ? 'Cambia immagine' : 'Carica mappa'}
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
@@ -322,7 +408,6 @@ export default function MapView({ onOpenElement }) {
         </div>
       </div>
 
-      {/* Canvas */}
       {!mapImage ? (
         <div className="empty" style={{ flex: 1 }}>
           <div className="empty-icon">🗺</div>
@@ -334,125 +419,164 @@ export default function MapView({ onOpenElement }) {
           </label>
         </div>
       ) : (
-        <div ref={wrapRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', borderRadius: 10, border: '1px solid var(--border)', cursor: placing ? 'crosshair' : 'default' }}>
-          <img ref={imgRef} src={mapImage} alt="Mappa"
-            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', userSelect: 'none' }}
-            onClick={handleMapClick}
-            onTouchEnd={e => { e.preventDefault(); if (placing) handleMapClick(e); }}
-            draggable={false}
-          />
+        <div
+          ref={wrapRef}
+          style={{ flex: 1, position: 'relative', overflow: 'hidden', borderRadius: 10, border: '1px solid var(--border)', cursor: placing ? 'crosshair' : 'grab', touchAction: 'none', background: '#111' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={() => { drag.current = null; if (wrapRef.current) wrapRef.current.style.cursor = placing ? 'crosshair' : 'grab'; }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Pulsante reset */}
+          <button onClick={e => { e.stopPropagation(); resetView(); }}
+            style={{ position: 'absolute', top: 8, right: 8, zIndex: 30, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, padding: '4px 8px', cursor: 'pointer', fontFamily: "'Crimson Pro', serif" }}>
+            ⊡ Reset
+          </button>
 
-          {/* Linee tracciamento */}
-          {trackPositions.length > 0 && (
-            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-              {trackPositions.map(({ elId, color, positions }) =>
-                positions.map((p, i) => {
-                  if (i === 0) return null;
-                  const prev = positions[i - 1];
-                  return (
-                    <g key={`${elId}-${i}`}>
-                      <line x1={`${prev.x}%`} y1={`${prev.y}%`} x2={`${p.x}%`} y2={`${p.y}%`}
-                        stroke={color} strokeWidth={2} strokeDasharray="5 3" strokeOpacity={0.8} />
-                      <text x={`${p.x}%`} y={`${p.y}%`} dy={-14} textAnchor="middle"
-                        style={{ fontSize: 9, fill: color, fontFamily: "'Crimson Pro', serif", pointerEvents: 'none' }}>
-                        {p.date}
-                      </text>
-                    </g>
-                  );
-                })
-              )}
-            </svg>
-          )}
+          {/* Layer trasformato — contiene immagine, POI e SVG */}
+          <div ref={layerRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', transformOrigin: '0 0', transform: 'translate(0px, 0px) scale(1)' }}>
 
-          {/* POI */}
-          {visiblePois.map(poi => {
-            const luogo    = poi.elementId ? elements.find(e => e.id === poi.elementId) : null;
-            const color    = luogo ? elColor(luogo) : '#c9a84c';
-            const isSel    = selected === poi.id;
-            const presenti = timeFilter ? (elementiPerPoi[poi.id] || []) : [];
-            const isTrack  = trackPositions.some(({ positions }) => positions.some(p => p.id === poi.id));
+            {/* Immagine — occupa tutto il layer, contain gestito da object-fit */}
+            <img
+              ref={imgRef}
+              src={mapImage}
+              alt="Mappa"
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }}
+              onLoad={calcImgArea}
+              draggable={false}
+            />
 
-            return (
-              <div key={poi.id}
-                style={{ position: 'absolute', left: `${poi.x}%`, top: `${poi.y}%`, transform: 'translate(-50%, -100%)', zIndex: isSel ? 10 : 5 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
-
-                  {/* Card al click */}
-                  {isSel && (
-                    <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px 12px', boxShadow: '0 6px 24px rgba(0,0,0,.7)', minWidth: 180, maxWidth: 240, zIndex: 20, pointerEvents: 'auto' }}
-                      onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setSelected(null)}
-                        style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
-                      <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, marginBottom: 2, paddingRight: 16 }}>{poi.name}</div>
-                      {luogo && luogo.name !== poi.name && <div style={{ fontSize: 11, color, marginBottom: 4 }}>📍 {luogo.name}</div>}
-                      {luogo?.desc && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8, lineHeight: 1.5 }}>{luogo.desc.length > 80 ? luogo.desc.slice(0, 80) + '…' : luogo.desc}</div>}
-                      {timeFilter && (
-                        <div style={{ marginBottom: 8 }}>
-                          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 5 }}>
-                            Presenti il {timeFilter} — {presenti.length > 0 ? `${presenti.length} element${presenti.length !== 1 ? 'i' : 'o'}` : 'nessuno'}
-                          </div>
-                          {presenti.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                              {presenti.map(el => (
-                                <span key={el.id} onClick={() => onOpenElement(el.id)}
-                                  style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: elColor(el) + '22', border: `1px solid ${elColor(el)}55`, color: elColor(el), cursor: 'pointer' }}>
-                                  {elIcon(el)} {el.name}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', gap: 5 }}>
-                        {luogo && <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { onOpenElement(luogo.id); setSelected(null); }}>Apri scheda</button>}
-                        <button className="btn-d" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { handleDeletePoi(poi.id); setSelected(null); }}>Rimuovi</button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Marker */}
-                  <div onClick={e => { e.stopPropagation(); setSelected(isSel ? null : poi.id); }}
-                    style={{ width: presenti.length > 0 ? 26 : 22, height: presenti.length > 0 ? 26 : 22, borderRadius: '50% 50% 50% 0', transform: isSel ? 'rotate(-45deg) scale(1.25)' : 'rotate(-45deg)', background: isSel ? color + '55' : presenti.length > 0 ? color + '44' : color + '33', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: presenti.length > 0 ? `0 0 12px ${color}, 0 0 24px ${color}55` : isTrack ? `0 0 8px ${color}` : '0 2px 6px rgba(0,0,0,.5)', transition: 'all .2s', cursor: 'pointer' }}>
-                    <span style={{ transform: 'rotate(45deg)', fontSize: presenti.length > 0 ? 12 : 10 }}>📍</span>
-                  </div>
-
-                  {/* Badge numero elementi presenti */}
-                  {timeFilter && presenti.length > 0 && (
-                    <div style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: 'var(--gold)', color: 'var(--bg)', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(45deg)', pointerEvents: 'none' }}>
-                      {presenti.length}
-                    </div>
-                  )}
-
-                  {/* Pallini tracciamento */}
-                  {trackPositions.map(({ elId, color: tColor, positions }) => {
-                    const isHere = positions.length > 0 && positions[positions.length - 1].id === poi.id;
-                    if (!isHere) return null;
-                    const tIdx = trackPositions.findIndex(t => t.elId === elId);
+            {/* SVG linee tracciamento — sovrapposto all'immagine, stesse dimensioni */}
+            {trackPositions.length > 0 && (
+              <svg style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+                {trackPositions.map(({ elId, color, positions }) =>
+                  positions.map((p, i) => {
+                    if (i === 0) return null;
+                    const prev = positions[i - 1];
                     return (
-                      <div key={elId} style={{ position: 'absolute', bottom: -4, left: '50%', transform: `translateX(calc(-50% + ${tIdx * 10 - (trackPositions.length - 1) * 5}px)) rotate(45deg)`, width: 8, height: 8, borderRadius: '50%', background: tColor, border: '1px solid var(--surface)', pointerEvents: 'none' }} />
+                      <g key={`${elId}-${i}`}>
+                        <line
+                          x1={imgArea.left + imgArea.w * prev.x / 100}
+                          y1={imgArea.top  + imgArea.h * prev.y / 100}
+                          x2={imgArea.left + imgArea.w * p.x    / 100}
+                          y2={imgArea.top  + imgArea.h * p.y    / 100}
+                          stroke={color} strokeWidth={2} strokeDasharray="5 3" strokeOpacity={0.8} />
+                        <text x={`${p.x}%`} y={`${p.y}%`} dy={-14} textAnchor="middle"
+                          style={{ fontSize: 9, fill: color, fontFamily: "'Crimson Pro', serif", pointerEvents: 'none' }}>
+                          {p.date}
+                        </text>
+                      </g>
                     );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                  })
+                )}
+              </svg>
+            )}
 
-          {/* Modal configurazione POI dopo posizionamento */}
+            {/* POI — posizionati con % relativi all'area immagine */}
+            {visiblePois.map(poi => {
+              const luogo    = poi.elementId ? elements.find(e => e.id === poi.elementId) : null;
+              const color    = poi.color || (luogo ? elColor(luogo) : '#c9a84c');
+              const isSel    = selected === poi.id;
+              const presenti = timeFilter ? (elementiPerPoi[poi.id] || []) : [];
+
+              return (
+                <div key={poi.id}
+                  style={{ position: 'absolute',
+                  left: `${imgArea.left + imgArea.w * poi.x / 100}px`,
+                  top:  `${imgArea.top  + imgArea.h * poi.y / 100}px`,
+                  transform: 'translate(-50%, -100%)', zIndex: isSel ? 10 : 5 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+
+                    {/* Card info */}
+                    {isSel && (
+                      <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px 12px', boxShadow: '0 6px 24px rgba(0,0,0,.7)', minWidth: 180, maxWidth: 240, zIndex: 20, pointerEvents: 'auto' }}
+                        onClick={e => e.stopPropagation()}>
+                        <button onClick={() => setSelected(null)} style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
+                        <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, marginBottom: 2, paddingRight: 16 }}>{poi.name}</div>
+                        {luogo && luogo.name !== poi.name && <div style={{ fontSize: 11, color, marginBottom: 4 }}>📍 {luogo.name}</div>}
+                        {luogo?.desc && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8, lineHeight: 1.5 }}>{luogo.desc.length > 80 ? luogo.desc.slice(0, 80) + '…' : luogo.desc}</div>}
+                        {timeFilter && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 5 }}>
+                              Presenti il {timeFilter} — {presenti.length > 0 ? `${presenti.length} element${presenti.length !== 1 ? 'i' : 'o'}` : 'nessuno'}
+                            </div>
+                            {presenti.length > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {presenti.map(el => (
+                                  <span key={el.id} onClick={() => onOpenElement(el.id)}
+                                    style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: elColor(el) + '22', border: `1px solid ${elColor(el)}55`, color: elColor(el), cursor: 'pointer' }}>
+                                    {elIcon(el)} {el.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 5 }}>
+                          {luogo && <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { onOpenElement(luogo.id); setSelected(null); }}>Apri scheda</button>}
+                          <button className="btn-d" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { handleDeletePoi(poi.id); setSelected(null); }}>Rimuovi</button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Marker */}
+                    <div onClick={e => { e.stopPropagation(); setSelected(isSel ? null : poi.id); }}
+                      style={{ width: presenti.length > 0 ? 18 : 14, height: presenti.length > 0 ? 18 : 14, borderRadius: '50% 50% 50% 0', transform: isSel ? 'rotate(-45deg) scale(1.25)' : 'rotate(-45deg)', background: color, border: '2px solid rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: presenti.length > 0 ? `0 0 8px ${color}` : '0 2px 4px rgba(0,0,0,.6)', transition: 'all .2s', cursor: 'pointer' }}>
+                    </div>
+
+                    {/* Badge presenti */}
+                    {timeFilter && presenti.length > 0 && (
+                      <div style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: 'var(--gold)', color: 'var(--bg)', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(45deg)', pointerEvents: 'none' }}>
+                        {presenti.length}
+                      </div>
+                    )}
+
+                    {/* Pallini tracciamento */}
+                    {trackPositions.map(({ elId, color: tColor, positions }) => {
+                      const isHere = positions.length > 0 && positions[positions.length - 1].id === poi.id;
+                      if (!isHere) return null;
+                      const tIdx = trackPositions.findIndex(t => t.elId === elId);
+                      return (
+                        <div key={elId} style={{ position: 'absolute', bottom: -4, left: '50%', transform: `translateX(calc(-50% + ${tIdx * 10 - (trackPositions.length - 1) * 5}px)) rotate(45deg)`, width: 8, height: 8, borderRadius: '50%', background: tColor, border: '1px solid var(--surface)', pointerEvents: 'none' }} />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>{/* fine layer */}
+
+          {/* Modal nuovo POI — fuori dal layer, centrato nel wrapper */}
           {pendingPoi && (
-            <div style={{ position: 'absolute', left: `${Math.min(pendingPoi.x, 70)}%`, top: `${Math.min(pendingPoi.y, 70)}%`, transform: 'translate(-50%, -50%)', background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '14px 16px', zIndex: 50, minWidth: 220, boxShadow: '0 8px 32px rgba(0,0,0,.7)' }}
+            <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '14px 16px', zIndex: 50, minWidth: 220, boxShadow: '0 8px 32px rgba(0,0,0,.7)' }}
               onClick={e => e.stopPropagation()}>
               <div style={{ fontSize: 13, color: 'var(--gold)', marginBottom: 10, fontFamily: "'Playfair Display', serif" }}>📍 Nuovo punto</div>
-              <input className="fi" style={{ fontSize: 13, marginBottom: 8 }}
-                placeholder="Nome del punto…" value={newPoiName}
-                onChange={e => setNewPoiName(e.target.value)} autoFocus autoComplete="off" />
-              <select className="fs" style={{ fontSize: 13, marginBottom: 10 }}
-                value={newPoiEl} onChange={e => setNewPoiEl(e.target.value)}>
+              <input className="fi" style={{ fontSize: 13, marginBottom: 8 }} placeholder="Nome del punto…" value={newPoiName} onChange={e => setNewPoiName(e.target.value)} autoFocus autoComplete="off" />
+              <select className="fs" style={{ fontSize: 13, marginBottom: 10 }} value={newPoiEl} onChange={e => setNewPoiEl(e.target.value)}>
                 <option value="">— Collega a luogo (opz.) —</option>
                 {luoghi.map(l => <option key={l.id} value={l.id}>📍 {l.name}</option>)}
               </select>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>Colore</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {[
+                    { c: '', label: 'A' },
+                    { c: '#e07070' }, { c: '#d4956a' }, { c: '#d4a84c' },
+                    { c: '#8fbd7c' }, { c: '#7ab8d4' }, { c: '#b88fc4' },
+                    { c: '#f0e0b0' }, { c: '#c9a84c' }, { c: '#a0d0c0' },
+                  ].map(({ c, label }) => (
+                    <div key={c} onClick={() => setNewPoiColor(c)}
+                      style={{ width: 22, height: 22, borderRadius: c ? '50% 50% 50% 0' : 6, transform: c ? 'rotate(-45deg)' : 'none', background: c || 'var(--surface3)', border: newPoiColor === c ? '2px solid var(--gold)' : '2px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: newPoiColor === c ? '0 0 0 2px var(--gold-dim)' : 'none', transition: 'all .15s', flexShrink: 0 }}>
+                      {!c && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{label}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn-g" style={{ flex: 1, fontSize: 12 }}
-                  onClick={() => { setPendingPoi(null); setNewPoiEl(''); setNewPoiName(''); }}>Annulla</button>
+                <button className="btn-g" style={{ flex: 1, fontSize: 12 }} onClick={() => { setPendingPoi(null); setNewPoiEl(''); setNewPoiName(''); setNewPoiColor(''); }}>Annulla</button>
                 <button className="btn-p" style={{ flex: 1, fontSize: 12 }} onClick={confirmPoi}>Conferma</button>
               </div>
             </div>

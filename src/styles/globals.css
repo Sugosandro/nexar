@@ -905,3 +905,102 @@ body {
     padding: 4px 7px;
   }
 }
+
+/* ══════════════════════════════════════════════
+   TIMELINE — layout split mobile
+══════════════════════════════════════════════ */
+
+/* Desktop: griglia a tre colonne con linea centrale */
+.tl-split-row {
+  display: grid;
+  grid-template-columns: 1fr 40px 1fr;
+  align-items: start;
+}
+
+/* Mobile: colonna singola, tutto a destra */
+@media (max-width: 640px) {
+  .tl-split-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Nascondi il punto centrale su mobile (lo gestiamo diversamente) */
+  .tl-split-row > div:nth-child(2) {
+    display: none;
+  }
+
+  /* Entrambe le colonne prendono tutta la larghezza */
+  .tl-split-row > div:nth-child(1),
+  .tl-split-row > div:nth-child(3) {
+    padding: 0 !important;
+    width: 100%;
+  }
+
+  /* Toolbar timeline: impila su mobile */
+  .tl-toolbar-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Nasconde i selettori "lati" su mobile */
+  .tl-side-config {
+    display: none;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   ANALISI — layout mobile
+══════════════════════════════════════════════ */
+
+/* Desktop: due colonne */
+.analisi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+  min-width: 0;
+}
+
+.analisi-col-testo,
+.analisi-col-proposte {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Mobile: colonna singola + riordino */
+@media (max-width: 768px) {
+  .analisi-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .analisi-col-testo    { order: 2; }
+  .analisi-col-proposte { order: 1; }
+
+  /* Evita overflow interno */
+  .analisi-col-testo *,
+  .analisi-col-proposte * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Pulsanti separatore: permetti wrap */
+  .analisi-sep-btns {
+    flex-wrap: wrap !important;
+  }
+}
+
+/* ── Mappa mobile ── */
+@media (max-width: 768px) {
+  .map-view {
+    padding: 12px 14px !important;
+    height: calc(100vh - 100px) !important;
+  }
+  .map-view .view-hd {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+  .map-view .view-hd > div {
+    width: 100%;
+  }
+}

@@ -84,11 +84,25 @@ function ChangelogTab({ el, updateEl, elements, showToast }) {
 }
 
 // ── POWERS TAB ──
-function PowersTab({ el, updateEl, magie, showToast }) {
-  const [newName,  setNewName]  = useState('');
-  const [newDesc,  setNewDesc]  = useState('');
-  const [newMagia, setNewMagia] = useState('');
-  const [newInt,   setNewInt]   = useState('media');
+function PowersTab({ el, updateEl, magie, elements, showToast }) {
+  const [newName,    setNewName]    = useState('');
+  const [newDesc,    setNewDesc]    = useState('');
+  const [newMagia,   setNewMagia]   = useState('');
+  const [newInt,     setNewInt]     = useState('media');
+  const [powerOpen,  setPowerOpen]  = useState(false);
+  const [powerQuery, setPowerQuery] = useState('');
+  const powerInputRef = { current: null };
+
+  // Tutti i poteri esistenti nel mondo (da altri elementi)
+  const allPowers = elements.flatMap(e =>
+    (e.powers || []).map(p => ({ ...p, fromEl: e.name }))
+  ).filter((p, i, arr) =>
+    p.name && arr.findIndex(x => x.name.toLowerCase() === p.name.toLowerCase()) === i
+  );
+
+  const powerSuggestions = allPowers.filter(p =>
+    !powerQuery || p.name.toLowerCase().includes(powerQuery.toLowerCase())
+  );
 
   const INTENSITA = [
     { value: 'bassa',    label: '○ Bassa',    color: '#8fbd7c' },
@@ -148,8 +162,31 @@ function PowersTab({ el, updateEl, magie, showToast }) {
 
       <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}>
         <div className="dp-lbl" style={{ marginBottom: 8 }}>Aggiungi potere</div>
-        <input className="fi" style={{ fontSize: 13, marginBottom: 6 }}
-          placeholder="Nome del potere…" value={newName} onChange={e => setNewName(e.target.value)} autoComplete="off" />
+        <div style={{ position: 'relative', marginBottom: 6 }}>
+          <input className="fi" style={{ fontSize: 13, marginBottom: 0 }}
+            placeholder="Nome del potere (o scegli da esistenti)…"
+            value={newName}
+            onChange={e => { setNewName(e.target.value); setPowerQuery(e.target.value); setPowerOpen(true); }}
+            onFocus={() => setPowerOpen(true)}
+            onBlur={() => setTimeout(() => setPowerOpen(false), 200)}
+            autoComplete="off" />
+          {powerOpen && powerSuggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700, maxHeight: 200, overflowY: 'auto' }}>
+              <div style={{ padding: '5px 12px 4px', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                Poteri esistenti nel mondo
+              </div>
+              {powerSuggestions.map((p, i) => (
+                <div key={i} onMouseDown={() => { setNewName(p.name); setNewDesc(p.desc || ''); setNewInt(p.intensita || 'media'); setNewMagia(p.magiaId || ''); setPowerOpen(false); setPowerQuery(''); }}
+                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}>
+                  <span style={{ flex: 1, color: 'var(--text)' }}>{p.name}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>da {p.fromEl}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <textarea className="ft" style={{ fontSize: 13, minHeight: 55, marginBottom: 6 }}
           placeholder="Descrizione…" value={newDesc} onChange={e => setNewDesc(e.target.value)} />
         <div className="dp-lbl" style={{ marginBottom: 5 }}>Intensità</div>
@@ -189,7 +226,7 @@ function EquipTab({ el, updateEl, elements, showToast }) {
 
   const oggetti  = elements.filter(e => e.cat === 'object');
   const equipped = (el.equip || []).map(id => oggetti.find(o => o.id === id)).filter(Boolean);
-  const suggestions = oggetti.filter(o =>
+  const available = oggetti.filter(o =>
     !(el.equip || []).includes(o.id) &&
     (!query || o.name.toLowerCase().includes(query.toLowerCase()))
   );
@@ -245,32 +282,27 @@ function EquipTab({ el, updateEl, elements, showToast }) {
             placeholder="Cerca tra gli oggetti…" value={query}
             onChange={e => { setQuery(e.target.value); setOpen(true); }}
             onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 200)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
             autoComplete="off" />
-          {open && suggestions.length > 0 && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700 }}>
-              {suggestions.map(obj => (
-                <div key={obj.id} onMouseDown={() => handleAdd(obj.id)}
-                  style={{ padding: '9px 12px', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                  onMouseLeave={e => e.currentTarget.style.background = ''}>
-                  <span>📦</span>
-                  <div>
-                    <div style={{ color: 'var(--text)' }}>{obj.name}</div>
-                    {obj.desc && <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{obj.desc.length > 50 ? obj.desc.slice(0, 50) + '…' : obj.desc}</div>}
+          {open && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700, maxHeight: 240, overflowY: 'auto' }}>
+              {oggetti.length === 0
+                ? <div style={{ padding: '12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun oggetto nel mondo — creane uno prima</div>
+                : available.length === 0
+                ? <div style={{ padding: '12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Tutti gli oggetti sono già equipaggiati</div>
+                : available.map(obj => (
+                  <div key={obj.id} onMouseDown={() => handleAdd(obj.id)}
+                    style={{ padding: '9px 12px', cursor: 'pointer', fontSize: 14, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <span style={{ fontSize: 15 }}>📦</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: 'var(--text)' }}>{obj.name}</div>
+                      {obj.desc && <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{obj.desc.length > 55 ? obj.desc.slice(0, 55) + '…' : obj.desc}</div>}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {oggetti.length === 0 && (
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 6 }}>
-              Nessun oggetto nel mondo — creane uno prima
-            </p>
-          )}
-          {open && suggestions.length === 0 && oggetti.length > 0 && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', padding: '10px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Tutti gli oggetti sono già equipaggiati
+                ))
+              }
             </div>
           )}
         </div>
@@ -288,13 +320,11 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
     arcs, updateArc, deleteArc,
     fazioni, updateFazione, deleteFazione,
     magie, updateMagia, deleteMagia,
-    elements,
+    elements, uid, wid
   } = useWorld();
 
   const [activeTab,    setActiveTab]    = useState('info');
   const [editing,      setEditing]      = useState(false);
-  const [expandedTag,  setExpandedTag]  = useState(null);
-  const [lightboxImg,  setLightboxImg]  = useState(null);
   const [editingFaz,   setEditingFaz]   = useState(false);
   const [editingMagia, setEditingMagia] = useState(false);
   const [editingArc,   setEditingArc]   = useState(false);
@@ -353,34 +383,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
         <div className="dp-body">
           {activeTab === 'info' && (
             <>
-              {/* Galleria immagini */}
-              {(() => {
-                const imgs = el.images?.length ? el.images : (el.image ? [el.image] : []);
-                if (!imgs.length) return null;
-                return (
-                  <div style={{ marginBottom: 16 }}>
-                    {imgs.length === 1 ? (
-                      <img src={imgs[0]} alt="" className="dp-img" style={{ cursor: 'zoom-in' }}
-                        onClick={() => setLightboxImg(imgs[0])} />
-                    ) : (
-                      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
-                        {imgs.map((src, i) => (
-                          <img key={i} src={src} alt="" onClick={() => setLightboxImg(src)}
-                            style={{ height: 100, width: 'auto', borderRadius: 6, flexShrink: 0, objectFit: 'cover', cursor: 'zoom-in', border: '1px solid var(--border)', transition: 'opacity .2s' }}
-                            onMouseEnter={e => e.currentTarget.style.opacity = '.8'}
-                            onMouseLeave={e => e.currentTarget.style.opacity = '1'} />
-                        ))}
-                      </div>
-                    )}
-                    {lightboxImg && (
-                      <div onClick={() => setLightboxImg(null)}
-                        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
-                        <img src={lightboxImg} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+              {el.image && <img className="dp-img" src={el.image} alt="" />}
               <div className="dp-sec">
                 <div className="dp-lbl">Descrizione</div>
                 <div className="dp-txt">{el.desc || <em style={{ opacity: .4 }}>—</em>}</div>
@@ -424,48 +427,6 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
                   </div>
                 </div>
               )}
-              {/* Tag collegati — espandibili */}
-              {(el.tags || []).length > 0 && (
-                <div className="dp-sec">
-                  <div className="dp-lbl">Tag collegati</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {(el.tags || []).map(tid => {
-                      const tagged = elements.find(e => e.id === tid);
-                      if (!tagged) return null;
-                      const tcolor = tagged.cat === 'char' ? '#7ab8d4' : tagged.cat === 'place' ? '#8fbd7c' : tagged.cat === 'object' ? '#d4956a' : tagged.cat === 'event' ? '#b88fc4' : '#888';
-                      const isExp  = expandedTag === tid;
-                      return (
-                        <div key={tid}>
-                          <div
-                            onClick={() => setExpandedTag(isExp ? null : tid)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--r)', background: isExp ? 'var(--surface2)' : 'var(--surface3)', border: `1px solid ${isExp ? tcolor + '66' : 'var(--border)'}`, cursor: 'pointer', transition: 'all .15s' }}
-                          >
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: tcolor, flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{tagged.name}</span>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                              {tagged.cat === 'char' ? '👤' : tagged.cat === 'place' ? '📍' : tagged.cat === 'object' ? '📦' : '⚡'}
-                            </span>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)', transition: 'transform .15s', transform: isExp ? 'rotate(180deg)' : 'none' }}>▼</span>
-                          </div>
-                          {isExp && (
-                            <div style={{ margin: '2px 0 0 0', padding: '8px 12px', background: 'var(--surface2)', borderRadius: 'var(--r)', borderTop: `2px solid ${tcolor}44` }}>
-                              {tagged.desc
-                                ? <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 6 }}>{tagged.desc.length > 180 ? tagged.desc.slice(0, 180) + '…' : tagged.desc}</div>
-                                : <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nessuna descrizione</div>
-                              }
-                              <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }}
-                                onClick={e => { e.stopPropagation(); onOpen('element', tagged.id); }}>
-                                Apri scheda →
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {links.length > 0 && (
                 <div className="dp-sec">
                   <div className="dp-lbl">Citato in</div>
@@ -483,7 +444,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             </>
           )}
           {activeTab === 'powers' && (
-            <PowersTab el={el} updateEl={updateEl} magie={magie} showToast={showToast} />
+            <PowersTab el={el} updateEl={updateEl} magie={magie} elements={elements} showToast={showToast} />
           )}
           {activeTab === 'equip' && (
             <EquipTab el={el} updateEl={updateEl} elements={elements} showToast={showToast} />
@@ -502,8 +463,15 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
 
         {editing && (
           <ElementModal initialData={el}
-            onSave={async (data, birthDate) => {
-              await updateEl(el.id, data);
+            onSave={async (data, birthDate, newTags = []) => {
+  await updateEl(el.id, data);
+  // Tag bidirezionali per i nuovi tag aggiunti
+  if (newTags.length && uid && wid) {
+    const { addBidirectionalTag } = await import('../firebase/db');
+    for (const tid of newTags) {
+      await addBidirectionalTag(uid, wid, el.id, tid);
+    }
+  }
               if (birthDate) {
                 await addEl({
                   cat: 'event', name: `Nascita di ${data.name}`,
@@ -647,6 +615,37 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
               {(!mag.users?.length) && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13 }}>Nessuno</span>}
             </div>
           </div>
+          {/* Poteri collegati a questo sistema */}
+          {(() => {
+            const linkedPowers = elements.flatMap(e =>
+              (e.powers || [])
+                .filter(p => p.magiaId === mag.id)
+                .map(p => ({ ...p, owner: e }))
+            );
+            if (!linkedPowers.length) return null;
+            return (
+              <div className="dp-sec">
+                <div className="dp-lbl">Poteri collegati</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {linkedPowers.map((p, i) => {
+                    const INTENSITA = { bassa: '#8fbd7c', media: '#d4a84c', alta: '#d4956a', assoluta: '#c89fd4' };
+                    const col = INTENSITA[p.intensita] || '#888';
+                    return (
+                      <div key={i} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '8px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: p.desc ? 4 : 0 }}>
+                          <span style={{ flex: 1, fontFamily: "'Playfair Display', serif", fontSize: 14, color: 'var(--text)' }}>{p.name}</span>
+                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: col + '22', color: col, border: `1px solid ${col}44` }}>{p.intensita}</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', cursor: 'pointer' }}
+                            onClick={() => onOpen('element', p.owner.id)}>→ {p.owner.name}</span>
+                        </div>
+                        {p.desc && <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>{p.desc}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
           <div className="dp-sec">
             <div className="dp-lbl">Note</div>
             <textarea className="notes-area" defaultValue={mag.notes || ''} placeholder="Note sul sistema di magia…"

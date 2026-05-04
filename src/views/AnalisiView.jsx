@@ -14,28 +14,44 @@ const TOKEN_BLOCK = 180_000;  // blocco rosso (limite sicuro per claude-sonnet)
 
 // ── Colori per tipo proposta ───────────────────────────────────────────────
 const TIPO_META = {
-  incongruenza:     { label: 'Incongruenza',      color: '#e07070', bg: '#3a1515', icon: '⚠' },
-  nuovo_elemento:   { label: 'Nuovo elemento',     color: '#8ec8e4', bg: '#1e3d50', icon: '✦' },
-  nuova_connessione:{ label: 'Nuova connessione',  color: '#9fcd8c', bg: '#223818', icon: '🔗' },
-  approfondimento:  { label: 'Approfondimento',    color: '#d4a84c', bg: '#3a2a08', icon: '💡' },
+  incongruenza:       { label: 'Incongruenza',       color: '#e07070', bg: '#3a1515', icon: '⚠' },
+  nuovo_elemento:     { label: 'Nuovo elemento',      color: '#8ec8e4', bg: '#1e3d50', icon: '✦' },
+  nuova_connessione:  { label: 'Nuova connessione',   color: '#9fcd8c', bg: '#223818', icon: '🔗' },
+  approfondimento:    { label: 'Approfondimento',     color: '#d4a84c', bg: '#3a2a08', icon: '💡' },
+  nuovo_potere:       { label: 'Nuovo potere',        color: '#c89fd4', bg: '#2e1e3c', icon: '⚡' },
+  modifica_desc:      { label: 'Modifica descrizione',color: '#a0d0c0', bg: '#1a3830', icon: '✏' },
+  modifica_tag:       { label: 'Modifica tag',        color: '#f0c060', bg: '#3a2a08', icon: '🏷' },
 };
 
 // ── Divide testo in capitoli ───────────────────────────────────────────────
-function splitChapters(text) {
-  // Splitta su righe che iniziano con #, Capitolo, Chapter, --- o ===
+function splitChapters(text, customSep = '') {
   const lines = text.split('\n');
   const chapters = [];
   let current = { title: 'Inizio', lines: [] };
 
+  // Separatore custom (es. "***" o "==CAPITOLO==")
+  const sepRegex = customSep.trim()
+    ? new RegExp('^' + customSep.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(.*)$', 'i')
+    : null;
+
   for (const line of lines) {
-    const isHeader =
+    const isCustom = sepRegex && sepRegex.test(line.trim());
+    const isAuto   = !customSep.trim() && (
       /^#{1,3}\s/.test(line) ||
       /^(capitolo|chapter|parte|part|prologo|epilogo)\s/i.test(line.trim()) ||
-      /^[-=]{3,}$/.test(line.trim());
+      /^[-=]{3,}$/.test(line.trim())
+    );
 
-    if (isHeader && current.lines.length > 20) {
+    if ((isCustom || isAuto) && current.lines.length > 5) {
       chapters.push({ ...current, text: current.lines.join('\n').trim() });
-      current = { title: line.replace(/^#{1,3}\s/, '').trim() || line.trim(), lines: [] };
+      // Titolo: usa il testo dopo il separatore custom, o la riga stessa per auto
+      let title = line.trim();
+      if (isCustom && customSep.trim()) {
+        title = line.replace(new RegExp(customSep.trim(), 'i'), '').trim() || `Sezione ${chapters.length + 1}`;
+      } else {
+        title = line.replace(/^#{1,3}\s/, '').trim() || line.trim();
+      }
+      current = { title, lines: [] };
     } else {
       current.lines.push(line);
     }
@@ -137,7 +153,7 @@ Analizza questo capitolo e identifica:
 Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta deve avere questa struttura:
 [
   {
-    "tipo": "incongruenza" | "nuovo_elemento" | "nuova_connessione" | "approfondimento",
+    "tipo": "incongruenza" | "nuovo_elemento" | "nuova_connessione" | "approfondimento" | "nuovo_potere" | "modifica_desc" | "modifica_tag",
     "titolo": "titolo breve della proposta",
     "descrizione": "spiegazione dettagliata di cosa hai trovato e perché è rilevante",
     "capitolo": "${chapterTitle}",
@@ -147,10 +163,18 @@ Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta
       "name": "nome elemento",
       "desc": "descrizione suggerita",
       "importance": "protagonista|primario|secondario|minore",
-      // Per nuova_connessione:
+      // Per nuova_connessione / modifica_tag:
       "elemento_a": "nome elemento esistente",
       "elemento_b": "nome elemento esistente",
       "relazione": "descrizione della relazione",
+      // Per nuovo_potere:
+      "elemento_coinvolto": "nome personaggio",
+      "power_name": "nome del potere",
+      "power_desc": "descrizione del potere",
+      "power_intensita": "bassa|media|alta|assoluta",
+      // Per modifica_desc:
+      "elemento_coinvolto": "nome elemento da aggiornare",
+      "nuova_desc": "descrizione suggerita basata sul testo",
       // Per incongruenza/approfondimento:
       "elemento_coinvolto": "nome elemento coinvolto se applicabile",
       "testo_originale": "citazione breve dal testo (max 80 chars)"
@@ -269,6 +293,18 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
                 📋 Prendi nota →
               </button>
             )}
+            {proposal.tipo === 'nuovo_potere' && (
+              <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => onAccept(proposal)}>
+                ⚡ Aggiungi potere →
+              </button>
+            )}
+            {(proposal.tipo === 'modifica_desc' || proposal.tipo === 'modifica_tag') && (
+              <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => onAccept(proposal)}>
+                ✏ Modifica elemento →
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -301,6 +337,7 @@ export default function AnalisiView({ onOpenElement, showToast }) {
   // Modal accetta
   const [acceptModal,   setAcceptModal]   = useState(null); // proposta da accettare
 
+  const [customSep,    setCustomSep]    = useState('');
   const textareaRef = useRef(null);
 
   // ── Subscribe proposte Firestore ──
@@ -317,7 +354,7 @@ export default function AnalisiView({ onOpenElement, showToast }) {
   useEffect(() => {
     if (!text) { setChapters([]); setTokenEstimate(0); return; }
     const worldCtx = buildWorldContext(elements, arcs, fazioni, magie, allCats);
-    const chaps = splitChapters(text);
+    const chaps = splitChapters(text, customSep);
     setChapters(chaps);
     // Stima pessimistica: testo + contesto mondo * numero capitoli
     const est = chaps.reduce((acc, c) => acc + estimateTokens(c.text) + estimateTokens(worldCtx) + 800, 0);
@@ -343,7 +380,7 @@ export default function AnalisiView({ onOpenElement, showToast }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            max_tokens: 4000,
+            max_tokens: 6000,
             messages: [{
               role: 'user',
               content: buildChapterPrompt(chap.text, chap.title, worldContext, i, chapters.length),
@@ -448,6 +485,66 @@ export default function AnalisiView({ onOpenElement, showToast }) {
         notes:      `Suggerito dall'analisi — ${proposal.capitolo || ''}\n\n${proposal.descrizione}`,
       };
     }
+    if (proposal.tipo === 'nuovo_potere') {
+      const targetEl = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_coinvolto || '').toLowerCase());
+      // Apre la scheda dell'elemento con il potere pre-compilato nelle note
+      return {
+        cat:        targetEl?.cat || 'char',
+        name:       targetEl?.name || proposal.dati?.elemento_coinvolto || '',
+        desc:       targetEl?.desc || '',
+        importance: targetEl?.importance || 'secondario',
+        status:     targetEl?.status || 'draft',
+        tags:       targetEl?.tags || [],
+        extra:      targetEl?.extra || {},
+        powers:     targetEl?.powers || [],
+        equip:      targetEl?.equip || [],
+        changelog:  targetEl?.changelog || [],
+        notes:      `POTERE SUGGERITO:
+Nome: ${proposal.dati?.power_name || ''}
+Descrizione: ${proposal.dati?.power_desc || ''}
+Intensità: ${proposal.dati?.power_intensita || 'media'}
+
+${targetEl?.notes || ''}`,
+        _proposedPower: {
+          name: proposal.dati?.power_name || proposal.titolo,
+          desc: proposal.dati?.power_desc || proposal.descrizione,
+          intensita: proposal.dati?.power_intensita || 'media',
+        },
+      };
+    }
+    if (proposal.tipo === 'modifica_desc') {
+      const targetEl = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_coinvolto || '').toLowerCase());
+      return {
+        cat:        targetEl?.cat || 'char',
+        name:       targetEl?.name || proposal.dati?.elemento_coinvolto || '',
+        desc:       proposal.dati?.nuova_desc || targetEl?.desc || proposal.descrizione,
+        importance: targetEl?.importance || 'secondario',
+        status:     targetEl?.status || 'draft',
+        tags:       targetEl?.tags || [],
+        extra:      targetEl?.extra || {},
+        powers:     targetEl?.powers || [],
+        equip:      targetEl?.equip || [],
+        changelog:  targetEl?.changelog || [],
+        notes:      targetEl?.notes || '',
+      };
+    }
+    if (proposal.tipo === 'modifica_tag') {
+      const elA = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_a || '').toLowerCase());
+      const elB = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_b || '').toLowerCase());
+      return {
+        cat:        elA?.cat || 'char',
+        name:       elA?.name || proposal.dati?.elemento_a || '',
+        desc:       elA?.desc || '',
+        importance: elA?.importance || 'secondario',
+        status:     elA?.status || 'draft',
+        tags:       [...new Set([...(elA?.tags || []), elB?.id].filter(Boolean))],
+        extra:      elA?.extra || {},
+        powers:     elA?.powers || [],
+        equip:      elA?.equip || [],
+        changelog:  elA?.changelog || [],
+        notes:      elA?.notes || '',
+      };
+    }
     // incongruenza / approfondimento → nota libera
     return {
       cat:        'char',
@@ -492,6 +589,9 @@ export default function AnalisiView({ onOpenElement, showToast }) {
     return c;
   }, [proposals]);
 
+  // Detecta mobile per riordinare le sezioni
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   return (
     <div className="view">
       <div className="view-hd">
@@ -508,16 +608,48 @@ export default function AnalisiView({ onOpenElement, showToast }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div className="analisi-grid" style={{ direction: 'ltr' }}>
 
         {/* ── Colonna sinistra: input testo ── */}
-        <div>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 16 }}>
+        <div className="analisi-col-testo">
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 16, minWidth: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)' }}>Testo da analizzare</div>
               {text && (
                 <button className="btn-g" style={{ fontSize: 11 }} onClick={() => setText('')}>✕ Cancella</button>
               )}
+            </div>
+
+            {/* Separatore capitoli */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.09em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                Separatore capitoli
+              </div>
+              <div className="analisi-sep-btns" style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                {['', '---', '***', '===', '# ', 'Capitolo'].map(sep => (
+                  <button key={sep} type="button"
+                    onClick={() => setCustomSep(sep)}
+                    style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                      background: customSep === sep ? 'var(--gold-glow)' : 'var(--surface2)',
+                      border: `1px solid ${customSep === sep ? 'var(--gold-dim)' : 'var(--border)'}`,
+                      color: customSep === sep ? 'var(--gold)' : 'var(--text-muted)',
+                    }}>
+                    {sep === '' ? 'Auto' : sep === '# ' ? '# Titolo' : sep}
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="text" placeholder="Separatore personalizzato…" value={customSep}
+                  onChange={e => setCustomSep(e.target.value)}
+                  style={{ flex: 1, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
+                {customSep && <button type="button" onClick={() => setCustomSep('')}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}>✕</button>}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+                {customSep
+                  ? `Divisione ogni volta che trova "${customSep}" a inizio riga`
+                  : 'Divisione automatica su # titoli, Capitolo N, --- e simili'}
+              </div>
             </div>
 
             {/* Upload file */}
@@ -620,7 +752,7 @@ export default function AnalisiView({ onOpenElement, showToast }) {
         </div>
 
         {/* ── Colonna destra: proposte ── */}
-        <div>
+        <div className="analisi-col-proposte">
           {/* Header proposte con contatori */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: proposals.length > 0 ? 12 : 0 }}>

@@ -319,7 +319,7 @@ export default function TimelineView({ onOpenElement, showToast }) {
           <div className="empty-sub">{hasFilters ? 'Nessun evento corrisponde ai filtri' : 'Crea il primo evento della timeline'}</div>
         </div>
       ) : useSplit ? (
-        // ── Layout a due colonne con linea centrale ──
+        // ── Layout a due colonne con linea centrale (desktop) / singola (mobile) ──
         <div style={{ position: 'relative' }}>
           {/* Linea centrale */}
           <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, background: 'var(--border-light)', transform: 'translateX(-50%)', zIndex: 0 }} />
@@ -334,7 +334,7 @@ export default function TimelineView({ onOpenElement, showToast }) {
               const color = isRange ? RANGE_COLOR : (IMP_COLOR[imp] || '#b88fc4');
 
               return (
-                <div key={ev.id} style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', alignItems: 'start', marginBottom: 12, position: 'relative', zIndex: 1 }}>
+                <div key={ev.id} className="tl-split-row" style={{ marginBottom: 12, position: 'relative', zIndex: 1 }}>
                   {/* Colonna sinistra */}
                   <div style={{ paddingRight: 16 }}>
                     {(isLeft || isCenter) && <EventCard ev={ev} side={isLeft ? 'left' : 'center'} />}

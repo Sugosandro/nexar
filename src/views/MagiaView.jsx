@@ -10,8 +10,15 @@ function MagiaModal({ initialData = null, onSave, onClose }) {
   const [userQ, setUserQ] = useState('');
   const [userOpen, setUserOpen] = useState(false);
 
-  const suggestions = userQ ? elements.filter(e => !users.includes(e.id) && e.name.toLowerCase().includes(userQ.toLowerCase())).slice(0, 6) : [];
-  const addUser    = (id) => { setUsers(p => [...p, id]); setUserQ(''); setUserOpen(false); };
+  const cats = [
+    { id: 'char', name: 'Personaggi', icon: '👤', color: '#9dd4ee' },
+    { id: 'place', name: 'Luoghi', icon: '📍', color: '#aed896' },
+    { id: 'object', name: 'Oggetti', icon: '📦', color: '#ebb488' },
+    { id: 'event', name: 'Eventi', icon: '⚡', color: '#d4aedf' },
+  ];
+  const available = elements.filter(e => !users.includes(e.id) && (!userQ || e.name.toLowerCase().includes(userQ.toLowerCase())));
+  const grouped   = cats.map(c => ({ cat: c, items: available.filter(e => e.cat === c.id) })).filter(g => g.items.length > 0);
+  const addUser    = (id) => { setUsers(p => [...p, id]); setUserQ(''); };
   const removeUser = (id) => setUsers(p => p.filter(u => u !== id));
 
   const handleSave = () => {
@@ -39,17 +46,33 @@ function MagiaModal({ initialData = null, onSave, onClose }) {
               return <span key={id} style={{ background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 {el.name}<span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }} onClick={e => { e.stopPropagation(); removeUser(id); }}>×</span></span>; })}
             <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
-              <input id="magUserIn2" type="text" placeholder={users.length ? '' : 'Cerca elemento…'} value={userQ}
+              <input id="magUserIn2" type="text" placeholder={users.length ? '' : 'Cerca o sfoglia…'} value={userQ}
                 onChange={e => { setUserQ(e.target.value); setUserOpen(true); }}
                 onFocus={() => setUserOpen(true)} onBlur={() => setTimeout(() => setUserOpen(false), 150)}
                 autoComplete="off"
                 style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: '100%' }} />
-              {userOpen && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 260, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700 }}>
-                  {suggestions.map(el => <div key={el.id} onMouseDown={() => addUser(el.id)}
-                    style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}>{el.name}</div>)}
+              {userOpen && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700, maxHeight: 260, overflowY: 'auto' }}>
+                  {grouped.length === 0
+                    ? <div style={{ padding: '12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun elemento trovato</div>
+                    : grouped.map(({ cat: c, items }) => (
+                      <div key={c.id}>
+                        <div style={{ padding: '5px 12px 4px', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: c.color, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span>{c.icon}</span><span>{c.name}</span>
+                          <span style={{ marginLeft: 'auto', fontWeight: 400, opacity: .7 }}>{items.length}</span>
+                        </div>
+                        {items.map(el => (
+                          <div key={el.id} onMouseDown={() => addUser(el.id)}
+                            style={{ padding: '7px 12px 7px 20px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                            onMouseLeave={e => e.currentTarget.style.background = ''}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                            <span style={{ flex: 1 }}>{el.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))
+                  }
                 </div>
               )}
             </div>

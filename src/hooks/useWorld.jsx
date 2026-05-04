@@ -43,7 +43,10 @@ export function WorldProvider({ uid, wid, children }) {
     return BUILTIN_CATS.map(bc => {
       const override = cats.find(c => c.id === bc.id);
       return override ? { ...bc, subs: override.subs || [] } : bc;
-    }).concat(cats.filter(c => !BUILTIN_CATS.find(bc => bc.id === c.id)));
+    }).concat(
+      // Escludi documenti malformati: devono avere name E non corrispondere a una built-in
+      cats.filter(c => c.name && !BUILTIN_CATS.find(bc => bc.id === c.id))
+    );
   };
 
   const catById   = (id) => allCats().find(c => c.id === id);
@@ -106,13 +109,14 @@ export function WorldProvider({ uid, wid, children }) {
   const deleteCatFn = (cid)          => deleteCat(uid, wid, cid);
 
   const upsertBuiltinSubs = async (catId, newSub) => {
-    const existing = cats.find(c => c.id === catId);
-    if (existing) {
-      await updateCat(uid, wid, catId, { subs: [...(existing.subs || []), newSub] });
-    } else {
-      const { setDoc, doc } = await import('firebase/firestore');
-      await setDoc(doc(db, 'users', uid, 'worlds', wid, 'cats', catId), { subs: [newSub] });
-    }
+    // Usa sempre setDoc con l'ID della built-in — fa upsert automatico.
+    // Legge prima le subs esistenti per non sovrascriverle.
+    const { setDoc, doc, getDoc } = await import('firebase/firestore');
+    const ref  = doc(db, 'users', uid, 'worlds', wid, 'cats', catId);
+    const snap = await getDoc(ref);
+    const existingSubs = snap.exists() ? (snap.data().subs || []) : [];
+    if (existingSubs.includes(newSub)) return; // già presente
+    await setDoc(ref, { subs: [...existingSubs, newSub] }, { merge: true });
   };
 
   const value = {

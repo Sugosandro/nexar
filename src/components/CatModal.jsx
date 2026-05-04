@@ -5,7 +5,7 @@ import { useWorld, BUILTIN_CATS } from '../hooks/useWorld';
 const PALETTE = ['#7ab8d4','#8fbd7c','#d4956a','#b88fc4','#e8a0a8','#a8d4b8','#d4c07a','#c4a0d4','#7ab8a8','#d4a07a','#a0b4d4','#d4b8a0'];
 
 export default function CatModal({ onClose, showToast }) {
-  const { cats, addCat, updateCat, deleteCat } = useWorld();
+  const { cats, allCats, addCat, updateCat, deleteCat, upsertBuiltinSubs } = useWorld();
 
   const [newName,    setNewName]    = useState('');
   const [newIcon,    setNewIcon]    = useState('');
@@ -13,7 +13,7 @@ export default function CatModal({ onClose, showToast }) {
   const [subParent,  setSubParent]  = useState('');
   const [subName,    setSubName]    = useState('');
 
-  const allCatsEditable = [...BUILTIN_CATS, ...cats];
+  const allCatsEditable = allCats();
 
   const handleAddCat = async () => {
     if (!newName.trim()) return alert('Inserisci un nome');
@@ -29,32 +29,23 @@ export default function CatModal({ onClose, showToast }) {
   };
 
   const handleAddSub = async () => {
-  if (!subParent) return alert('Seleziona una categoria padre');
-  if (!subName.trim()) return alert('Inserisci il nome della sottocategoria');
+    if (!subParent) return alert('Seleziona una categoria padre');
+    if (!subName.trim()) return alert('Inserisci il nome della sottocategoria');
 
-  const isBuiltin = BUILTIN_CATS.find(c => c.id === subParent);
+    const isBuiltin = BUILTIN_CATS.find(c => c.id === subParent);
 
-  if (isBuiltin) {
-    // Cerca se esiste già un documento di override per questa built-in
-    const override = cats.find(c => c.id === subParent);
-    if (override) {
-      await updateCat(subParent, { subs: [...(override.subs || []), subName.trim()] });
+    if (isBuiltin) {
+      // upsertBuiltinSubs gestisce sia il caso override esistente che la prima creazione
+      await upsertBuiltinSubs(subParent, subName.trim());
     } else {
-      // Crea documento con stesso id della categoria built-in
-      await addDoc(collection(db, 'users', auth.currentUser.uid, 'worlds', wid, 'cats'), {
-        id: subParent, // stesso id della built-in
-        subs: [subName.trim()],
-      });
+      const cat = cats.find(c => c.id === subParent);
+      if (!cat) return;
+      await updateCat(subParent, { subs: [...(cat.subs || []), subName.trim()] });
     }
-  } else {
-    const cat = cats.find(c => c.id === subParent);
-    if (!cat) return;
-    await updateCat(subParent, { subs: [...(cat.subs || []), subName.trim()] });
-  }
 
-  setSubName('');
-  showToast('✓ Sottocategoria aggiunta');
-};
+    setSubName('');
+    showToast('✓ Sottocategoria aggiunta');
+  };
 
   const handleRemoveSub = async (catId, sub) => {
     const cat = cats.find(c => c.id === catId);
@@ -100,9 +91,7 @@ export default function CatModal({ onClose, showToast }) {
                   {cat.subs.map(sub => (
                     <span key={sub} style={{ background: 'var(--surface3)', border: '1px solid var(--border)', borderRadius: 20, padding: '2px 10px', fontSize: 12, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 5 }}>
                       {sub}
-                      {!cat.builtin && (
-                        <span style={{ cursor: 'pointer', opacity: .5, fontSize: 13 }} onClick={() => handleRemoveSub(cat.id, sub)}>×</span>
-                      )}
+                      <span style={{ cursor: 'pointer', opacity: .5, fontSize: 13 }} onClick={() => handleRemoveSub(cat.id, sub)}>×</span>
                     </span>
                   ))}
                 </div>
@@ -122,7 +111,7 @@ export default function CatModal({ onClose, showToast }) {
             <div className="fg" style={{ margin: 0 }}>
   <label className="fl">Icona</label>
   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
-    {['👤','📍','📦','⚡','🐉','👁','⚔','🏰','🌿','💀','🔮','📜','🗡','🛡','🐺','🦅','💎','🔥','❄','⚡','🌊','🌙','☀','🎭','🧙','🏔','🌋','🗺','🚢','🏛','🌾','🍄','🐴','🦁','🐍','🦋','🌹','🍷','🪄','⚗'].map(emoji => (
+    {['👤','📍','📦','⚡','🐉','👁','⚔','🏰','🌿','💀','🔮','📜','💎','🔥','🌊','🌙','🌟','🎭','🧙','🏔','🌋','🗺','🚢','🏛','🌾','🍄','🐴','🦁','🐍','🦋','🌹','🍷','🐺','🦅','🐻','🐗','🌲','🏺','⚗️','🎯'].map(emoji => (
       <button
         key={emoji}
         type="button"

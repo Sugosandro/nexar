@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useWorld } from '../hooks/useWorld';
+import { tagId, tagObj, sortTags, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
 import ElementModal from './ElementModal';
 import FazioneModal from './FazioneModal';
 import MagiaModal from './MagiaModal';
@@ -233,7 +234,7 @@ function EquipTab({ el, updateEl, elements, showToast }) {
 
   const handleAdd = async (objId) => {
     const updated = [...(el.equip || []), objId];
-    await updateEl(el.id, { equip: updated, tags: [...new Set([...(el.tags || []), objId])] });
+    await updateEl(el.id, { equip: updated, tags: [...(el.tags || []).filter(t => tagId(t) !== objId), { id: objId, rel: 'Equipaggiamento', importance: 'bassa' }] });
     // Tag bidirezionale sull'oggetto
     const obj = oggetti.find(o => o.id === objId);
     if (obj && !(obj.tags || []).includes(el.id)) {
@@ -325,6 +326,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
 
   const [activeTab,    setActiveTab]    = useState('info');
   const [editing,      setEditing]      = useState(false);
+  const [expandedTag,  setExpandedTag]  = useState(null);
   const [editingFaz,   setEditingFaz]   = useState(false);
   const [editingMagia, setEditingMagia] = useState(false);
   const [editingArc,   setEditingArc]   = useState(false);
@@ -427,6 +429,49 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
                   </div>
                 </div>
               )}
+              {/* Tag collegati — ordinati per importanza, raggruppati per categoria */}
+              {(el.tags || []).length > 0 && (
+                <div className="dp-sec">
+                  <div className="dp-lbl">Tag collegati</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {sortTags(el.tags).map(t => {
+                      const tid     = tagId(t);
+                      const to      = tagObj(t);
+                      const tagged  = elements.find(e => e.id === tid);
+                      if (!tagged) return null;
+                      const tcolor  = elColor(tagged);
+                      const impCol  = TAG_IMP_COLOR[to.importance] || '#888';
+                      const isExp   = expandedTag === tid;
+                      return (
+                        <div key={tid}>
+                          <div onClick={() => setExpandedTag(isExp ? null : tid)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 'var(--r)', background: isExp ? 'var(--surface2)' : 'var(--surface3)', border: `1px solid ${isExp ? tcolor + '66' : 'var(--border)'}`, cursor: 'pointer', transition: 'all .15s' }}>
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: tcolor, flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: 'var(--text)', flex: 1 }}>{tagged.name}</span>
+                            {to.rel && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{to.rel}</span>}
+                            <span style={{ fontSize: 11, color: impCol, flexShrink: 0 }}>{TAG_IMP_LABEL[to.importance]}</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)', transition: 'transform .15s', transform: isExp ? 'rotate(180deg)' : 'none' }}>▼</span>
+                          </div>
+                          {isExp && (
+                            <div style={{ margin: '2px 0 0', padding: '8px 12px', background: 'var(--surface2)', borderRadius: 'var(--r)', borderTop: `2px solid ${tcolor}44` }}>
+                              {tagged.desc
+                                ? <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 6 }}>{tagged.desc.length > 200 ? tagged.desc.slice(0, 200) + '…' : tagged.desc}</div>
+                                : <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 6 }}>Nessuna descrizione</div>
+                              }
+                              <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }}
+                                onClick={e => { e.stopPropagation(); onOpen('element', tagged.id); }}>
+                                Apri scheda →
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Citato in — backlinks da altri elementi */}
               {links.length > 0 && (
                 <div className="dp-sec">
                   <div className="dp-lbl">Citato in</div>

@@ -99,19 +99,37 @@ export async function syncBidirectionalTags(uid, wid, elementId, oldTags = [], n
   const added   = newTags.filter(id => !oldTags.includes(id));
   const removed = oldTags.filter(id => !newTags.includes(id));
 
+  // Quando aggiunge un tag inverso, usa un oggetto con importance 'media' di default.
+  // Quando rimuove, rimuove sia il vecchio formato stringa che quello oggetto.
   const ops = [
-    ...added.map(targetId =>
-      updateDoc(docRef(uid, wid, 'elements', targetId), {
-        tags: arrayUnion(elementId),
-        updatedAt: serverTimestamp(),
-      }).catch(() => {})
-    ),
-    ...removed.map(targetId =>
-      updateDoc(docRef(uid, wid, 'elements', targetId), {
-        tags: arrayRemove(elementId),
-        updatedAt: serverTimestamp(),
-      }).catch(() => {})
-    ),
+    ...added.map(async targetId => {
+      try {
+        const snap = await getDoc(docRef(uid, wid, 'elements', targetId));
+        if (!snap.exists()) return;
+        const existing = snap.data().tags || [];
+        // Rimuovi eventuale vecchio formato stringa e aggiungi oggetto
+        const filtered = existing.filter(t => (typeof t === 'string' ? t : t?.id) !== elementId);
+        const hasObj   = filtered.some(t => (typeof t === 'string' ? t : t?.id) === elementId);
+        if (!hasObj) {
+          await updateDoc(docRef(uid, wid, 'elements', targetId), {
+            tags: [...filtered, { id: elementId, rel: '', importance: 'media' }],
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } catch {}
+    }),
+    ...removed.map(async targetId => {
+      try {
+        const snap = await getDoc(docRef(uid, wid, 'elements', targetId));
+        if (!snap.exists()) return;
+        const existing = snap.data().tags || [];
+        const filtered = existing.filter(t => (typeof t === 'string' ? t : t?.id) !== elementId);
+        await updateDoc(docRef(uid, wid, 'elements', targetId), {
+          tags: filtered,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {}
+    }),
   ];
 
   await Promise.all(ops);
@@ -319,4 +337,81 @@ export async function deleteProposal(uid, wid, pid) {
 export async function deleteAllProposals(uid, wid) {
   const snap = await getDocs(colRef(uid, wid, 'proposals'));
   await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+}
+
+// ══════════════════════════════════════════════
+// TESTI SALVATI
+// Testi lunghi vengono spezzati in chunk da ~800KB
+// per rispettare il limite Firestore di 1MB/documento
+// ══════════════════════════════════════════════
+
+const CHUNK_SIZE = 800_000; // caratteri per chunk
+
+/** Lista tutti i testi salvati (solo metadati, senza contenuto) */
+export function subscribeTexts(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'texts'), orderBy('createdAt', 'desc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data(), content: undefined })))
+  );
+}
+
+/** Salva un testo con nome — lo spezza in chunk se necessario */
+export async function saveText(uid, wid, { name, content, customSep = '' }) {
+  const chunks = [];
+  for (let i = 0; i < content.length; i += CHUNK_SIZE) {
+    chunks.push(content.slice(i, i + CHUNK_SIZE));
+  }
+
+  // Documento principale con metadati
+  const ref = await addDoc(colRef(uid, wid, 'texts'), {
+    name,
+    customSep,
+    charCount: content.length,
+    chunkCount: chunks.length,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  // Salva ogni chunk come sottodocumento
+  await Promise.all(chunks.map((chunk, i) =>
+    setDoc(doc(db, 'users', uid, 'worlds', wid, 'texts', ref.id, 'chunks', String(i)), { content: chunk })
+  ));
+
+  return ref.id;
+}
+
+/** Aggiorna nome/customSep di un testo esistente */
+export async function updateTextMeta(uid, wid, tid, changes) {
+  await updateDoc(docRef(uid, wid, 'texts', tid), {
+    ...changes,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Carica il contenuto completo di un testo (riassembla i chunk) */
+export async function loadTextContent(uid, wid, tid) {
+  const metaSnap = await getDoc(docRef(uid, wid, 'texts', tid));
+  if (!metaSnap.exists()) return null;
+  const { chunkCount } = metaSnap.data();
+
+  const chunkSnaps = await Promise.all(
+    Array.from({ length: chunkCount }, (_, i) =>
+      getDoc(doc(db, 'users', uid, 'worlds', wid, 'texts', tid, 'chunks', String(i)))
+    )
+  );
+
+  return chunkSnaps.map(s => s.data()?.content || '').join('');
+}
+
+/** Elimina un testo e tutti i suoi chunk */
+export async function deleteText(uid, wid, tid) {
+  const metaSnap = await getDoc(docRef(uid, wid, 'texts', tid));
+  const chunkCount = metaSnap.exists() ? (metaSnap.data().chunkCount || 1) : 1;
+
+  await Promise.all([
+    deleteDoc(docRef(uid, wid, 'texts', tid)),
+    ...Array.from({ length: chunkCount }, (_, i) =>
+      deleteDoc(doc(db, 'users', uid, 'worlds', wid, 'texts', tid, 'chunks', String(i)))
+    ),
+  ]);
 }

@@ -10,6 +10,7 @@ import ArcsView from '../views/ArcsView';
 import ConnectionsView from '../views/ConnectionsView';
 import MapView from '../views/MapView';
 import AnalisiView from '../views/AnalisiView';
+import TestiView  from '../views/TestiView';
 import DetailPanel from './DetailPanel';
 import CatModal from './CatModal';
 import Toast from './Toast';
@@ -24,6 +25,7 @@ const VIEWS = [
   { id: 'arcs',        label: '📖 Archi',        component: ArcsView },
   { id: 'connections', label: '🕸 Connessioni',  component: ConnectionsView },
   { id: 'analisi',     label: '🔍 Analisi',      component: AnalisiView },
+  { id: 'testi',       label: '📄 Testi',         component: TestiView },
 ];
 
 export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
@@ -31,6 +33,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
   const { loading } = useWorld();
 
   const [curView,     setCurView]     = useState('world');
+  const [preloadText, setPreloadText] = useState(null); // testo da caricare in Analisi
   const [panel,       setPanel]       = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [catModal,    setCatModal]    = useState(false);
@@ -99,6 +102,9 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
               onOpenMagia={(id)   => openPanel('magia', id)}
               onOpenArc={(id)     => openPanel('arc', id)}
               showToast={showToast}
+              onAnalyze={(textData) => { setPreloadText(textData); setCurView('analisi'); }}
+              preloadText={preloadText}
+              onPreloadConsumed={() => setPreloadText(null)}
             />
           )}
         </main>

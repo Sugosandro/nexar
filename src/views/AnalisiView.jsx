@@ -284,25 +284,31 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
             {proposal.tipo === 'nuova_connessione' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                🔗 Aggiungi connessione →
+                🔗 Collega elementi
               </button>
             )}
             {(proposal.tipo === 'incongruenza' || proposal.tipo === 'approfondimento') && (
               <button className="btn-g" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                📋 Prendi nota →
+                📋 Aggiungi nota
               </button>
             )}
             {proposal.tipo === 'nuovo_potere' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                ⚡ Aggiungi potere →
+                ⚡ Aggiungi a {proposal.dati?.elemento_coinvolto || 'elemento'}
               </button>
             )}
-            {(proposal.tipo === 'modifica_desc' || proposal.tipo === 'modifica_tag') && (
+            {proposal.tipo === 'modifica_desc' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                ✏ Modifica elemento →
+                ✏ Aggiorna {proposal.dati?.elemento_coinvolto || 'elemento'}
+              </button>
+            )}
+            {proposal.tipo === 'modifica_tag' && (
+              <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => onAccept(proposal)}>
+                🏷 Collega tag
               </button>
             )}
           </div>
@@ -313,8 +319,8 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
 }
 
 // ── COMPONENTE PRINCIPALE ──────────────────────────────────────────────────
-export default function AnalisiView({ onOpenElement, showToast }) {
-  const { elements, arcs, fazioni, magie, allCats, uid, wid, addEl } = useWorld();
+export default function AnalisiView({ onOpenElement, showToast, preloadText, onPreloadConsumed }) {
+  const { elements, arcs, fazioni, magie, allCats, uid, wid, addEl, updateEl } = useWorld();
 
   // Testo (solo in memoria)
   const [text,          setText]          = useState('');
@@ -334,11 +340,22 @@ export default function AnalisiView({ onOpenElement, showToast }) {
   const [filterTipo,    setFilterTipo]    = useState('');
   const [filterCap,     setFilterCap]     = useState('');
 
-  // Modal accetta
-  const [acceptModal,   setAcceptModal]   = useState(null); // proposta da accettare
+  // Modal accetta (solo per nuovo_elemento)
+  const [acceptModal,   setAcceptModal]   = useState(null);
+  // Conferma inline per modifiche dirette
+  const [confirmProp,   setConfirmProp]   = useState(null); // { proposal, preview }
+  const [applying,      setApplying]      = useState(false);
 
   const [customSep,    setCustomSep]    = useState('');
   const textareaRef = useRef(null);
+
+  // Carica testo proveniente da TestiView
+  useEffect(() => {
+    if (!preloadText) return;
+    setText(preloadText.content || '');
+    if (preloadText.customSep !== undefined) setCustomSep(preloadText.customSep);
+    onPreloadConsumed?.();
+  }, [preloadText]);
 
   // ── Subscribe proposte Firestore ──
   useEffect(() => {
@@ -446,8 +463,86 @@ export default function AnalisiView({ onOpenElement, showToast }) {
   };
 
   // ── Accetta proposta ──
-  const handleAccept = (proposal) => {
-    setAcceptModal(proposal);
+  const handleAccept = async (proposal) => {
+    const tipo = proposal.tipo;
+
+    // nuovo_elemento → apre ElementModal (crea nuovo)
+    if (tipo === 'nuovo_elemento') {
+      setAcceptModal(proposal);
+      return;
+    }
+
+    // Tutti gli altri tipi → mostra conferma inline con anteprima
+    const elA = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_a || '').toLowerCase());
+    const elB = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_b || '').toLowerCase());
+    const elC = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_coinvolto || '').toLowerCase());
+
+    let preview = '';
+    if (tipo === 'nuovo_potere') {
+      if (!elC) { showToast('⚠ Elemento non trovato nella bibbia'); return; }
+      preview = `Aggiunge il potere "${proposal.dati?.power_name}" a ${elC.name}`;
+    } else if (tipo === 'modifica_desc') {
+      if (!elC) { showToast('⚠ Elemento non trovato nella bibbia'); return; }
+      preview = `Aggiorna la descrizione di ${elC.name}`;
+    } else if (tipo === 'nuova_connessione' || tipo === 'modifica_tag') {
+      if (!elA || !elB) { showToast('⚠ Uno o entrambi gli elementi non trovati'); return; }
+      preview = `Collega "${elA.name}" ↔ "${elB.name}"`;
+    } else if (tipo === 'incongruenza' || tipo === 'approfondimento') {
+      // Aggiunge una nota all'elemento coinvolto, o apre modal per prendere nota
+      if (elC) {
+        preview = `Aggiunge una nota a ${elC.name}`;
+      } else {
+        setAcceptModal(proposal);
+        return;
+      }
+    }
+
+    setConfirmProp({ proposal, preview, elA, elB, elC });
+  };
+
+  // ── Applica modifica diretta all'elemento ──
+  const applyDirect = async () => {
+    if (!confirmProp || applying) return;
+    setApplying(true);
+    const { proposal, elA, elB, elC } = confirmProp;
+    const tipo = proposal.tipo;
+
+    try {
+      if (tipo === 'nuovo_potere' && elC) {
+        const newPower = {
+          name:      proposal.dati.power_name || proposal.titolo,
+          desc:      proposal.dati.power_desc || proposal.descrizione,
+          intensita: proposal.dati.power_intensita || 'media',
+          magiaId:   '',
+        };
+        await updateEl(elC.id, { powers: [...(elC.powers || []), newPower] });
+        showToast(`✓ Potere aggiunto a ${elC.name}`);
+
+      } else if (tipo === 'modifica_desc' && elC) {
+        await updateEl(elC.id, { desc: proposal.dati.nuova_desc || proposal.descrizione });
+        showToast(`✓ Descrizione di ${elC.name} aggiornata`);
+
+      } else if ((tipo === 'nuova_connessione' || tipo === 'modifica_tag') && elA && elB) {
+        // Tag bidirezionale — updateEl gestisce syncBidirectionalTags
+        const tagsA = [...new Set([...(elA.tags || []), elB.id])];
+        await updateEl(elA.id, { tags: tagsA });
+        showToast(`✓ Collegamento aggiunto tra ${elA.name} e ${elB.name}`);
+
+      } else if ((tipo === 'incongruenza' || tipo === 'approfondimento') && elC) {
+        const nota = `[${tipo === 'incongruenza' ? 'INCONGRUENZA' : 'APPROFONDIMENTO'} — ${proposal.capitolo || ''}]\n${proposal.descrizione}`;
+        const notePrev = elC.notes ? elC.notes + '\n\n' + nota : nota;
+        await updateEl(elC.id, { notes: notePrev });
+        showToast(`✓ Nota aggiunta a ${elC.name}`);
+      }
+
+      await deleteProposal(uid, wid, proposal.id);
+    } catch (e) {
+      showToast('⚠ Errore nell\'applicazione della modifica');
+      console.error(e);
+    }
+
+    setApplying(false);
+    setConfirmProp(null);
   };
 
   // ── Costruisce initialData per ElementModal dalla proposta ──
@@ -820,12 +915,58 @@ ${targetEl?.notes || ''}`,
         </div>
       </div>
 
-      {/* ── Modal accetta proposta ── */}
+      {/* ── Conferma modifica diretta ── */}
+      {confirmProp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 12, padding: '24px 28px', maxWidth: 420, width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,.7)' }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--text)', marginBottom: 12 }}>Conferma modifica</div>
+            <div style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 16 }}>
+              {confirmProp.preview}
+            </div>
+
+            {/* Anteprima modifica desc */}
+            {confirmProp.proposal.tipo === 'modifica_desc' && confirmProp.proposal.dati?.nuova_desc && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 6 }}>Nuova descrizione</div>
+                <div style={{ fontSize: 13, color: 'var(--text-dim)', background: 'var(--surface2)', padding: '10px 12px', borderRadius: 7, lineHeight: 1.6 }}>
+                  {confirmProp.proposal.dati.nuova_desc}
+                </div>
+                {confirmProp.elC?.desc && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 4 }}>Descrizione attuale</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface2)', padding: '8px 12px', borderRadius: 7, lineHeight: 1.5, fontStyle: 'italic', textDecoration: 'line-through', opacity: .6 }}>
+                      {confirmProp.elC.desc.slice(0, 200)}{confirmProp.elC.desc.length > 200 ? '…' : ''}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Anteprima nuovo potere */}
+            {confirmProp.proposal.tipo === 'nuovo_potere' && (
+              <div style={{ marginBottom: 16, background: 'var(--surface2)', padding: '10px 12px', borderRadius: 7 }}>
+                <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{confirmProp.proposal.dati?.power_name}</div>
+                <div style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 4 }}>{confirmProp.proposal.dati?.power_intensita}</div>
+                {confirmProp.proposal.dati?.power_desc && <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>{confirmProp.proposal.dati.power_desc}</div>}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn-g" onClick={() => setConfirmProp(null)} disabled={applying}>Annulla</button>
+              <button className="btn-p" onClick={applyDirect} disabled={applying}>
+                {applying ? '⏳ Applicazione…' : '✓ Applica modifica'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal crea nuovo elemento ── */}
       {acceptModal && (
         <ElementModal
           initialData={proposalToInitialData(acceptModal)}
           defaultCat={acceptModal.dati?.cat || 'char'}
-          onSave={async (data, birthDate) => {
+          onSave={async (data) => {
             await addEl(data);
             await deleteProposal(uid, wid, acceptModal.id);
             setAcceptModal(null);

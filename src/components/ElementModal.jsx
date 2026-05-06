@@ -1,6 +1,7 @@
 // src/components/ElementModal.jsx
 import { useState, useRef, useEffect } from 'react';
 import { useWorld } from '../hooks/useWorld';
+import { tagId, tagObj, TAG_IMPORTANCE, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
 
 const EXTRA_FIELDS = {
   char:   [{ key: 'ruolo', label: 'Ruolo' }, { key: 'nascita', label: 'Data di nascita', isDate: true }],
@@ -22,8 +23,9 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
   const [date, setDate] = useState(initialData?.date || '');
   const [importance, setImportance] = useState(initialData?.importance || 'minore');
   const [tags,     setTags]     = useState(initialData?.tags   || []);
-  const [tagQuery, setTagQuery] = useState('');
-  const [tagOpen,  setTagOpen]  = useState(false);
+  const [tagQuery,    setTagQuery]    = useState('');
+  const [tagOpen,     setTagOpen]     = useState(false);
+  const [editingTag,  setEditingTag]  = useState(null); // id tag in editing
   const tagInputRef = useRef(null);
 
   const curCat      = cats.find(c => c.id === cat);
@@ -59,8 +61,11 @@ const evElSuggestions = evElQuery
     e.target.value = '';
   };
 
-  const addTag = (id) => { setTags(prev => [...prev, id]); setTagQuery(''); setTagOpen(false); tagInputRef.current?.focus(); };
-  const removeTag = (id) => setTags(prev => prev.filter(t => t !== id));
+  const updateTagField = (id, field, value) => {
+    setTags(prev => prev.map(t => tagId(t) === id ? { ...tagObj(t), [field]: value } : t));
+  };
+  const addTag = (id) => { setTags(prev => [...prev, { id, rel: '', importance: 'media' }]); setTagQuery(''); setTagOpen(false); setEditingTag(id); };
+  const removeTag = (id) => { setTags(prev => prev.filter(t => tagId(t) !== id)); setEditingTag(null); };
 
 const handleSave = () => {
   if (!name.trim()) { alert('Il nome è obbligatorio'); return; }
@@ -325,14 +330,21 @@ const handleSave = () => {
             onClick={() => { setTagOpen(true); tagInputRef.current?.focus(); }}
             style={{ background: 'var(--surface2)', border: `1px solid ${tagOpen ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text', transition: 'border-color .15s' }}
           >
-            {tags.map(tid => {
-              const el = elements.find(e => e.id === tid);
+            {tags.map(t => {
+              const tid = tagId(t);
+              const to  = tagObj(t);
+              const el  = elements.find(e => e.id === tid);
               if (!el) return null;
-              const catColor = cats.find(c => c.id === el.cat)?.color || '#888';
+              const catColor  = cats.find(c => c.id === el.cat)?.color || '#888';
+              const impColor  = TAG_IMP_COLOR[to.importance] || '#888';
+              const isEditing = editingTag === tid;
               return (
-                <span key={tid} style={{ background: 'var(--surface3)', border: `1px solid ${catColor}55`, borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span key={tid} style={{ background: 'var(--surface3)', border: `1px solid ${catColor}55`, borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
+                  onClick={e => { e.stopPropagation(); setEditingTag(isEditing ? null : tid); }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, flexShrink: 0 }} />
                   {el.name}
+                  {to.rel && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>· {to.rel}</span>}
+                  <span style={{ color: impColor, fontSize: 11 }}>{TAG_IMP_LABEL[to.importance]}</span>
                   <span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }} onClick={e => { e.stopPropagation(); removeTag(tid); }}>×</span>
                 </span>
               );
@@ -358,7 +370,7 @@ const handleSave = () => {
           {tagOpen && (() => {
             const available = elements.filter(e =>
               e.id !== initialData?.id &&
-              !tags.includes(e.id) &&
+              !tags.some(t => tagId(t) === e.id) &&
               (tagQuery === '' || e.name.toLowerCase().includes(tagQuery.toLowerCase()))
             );
             const groups = cats
@@ -399,6 +411,40 @@ const handleSave = () => {
                     ))}
                   </div>
                 ))}
+              </div>
+            );
+          })()}
+          {/* Pannello modifica rel/importance del tag selezionato */}
+          {editingTag && (() => {
+            const t  = tags.find(x => tagId(x) === editingTag);
+            const to = t ? tagObj(t) : null;
+            const el = to ? elements.find(e => e.id === to.id) : null;
+            if (!to || !el) return null;
+            const catColor = cats.find(c => c.id === el.cat)?.color || '#888';
+            return (
+              <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--surface2)', border: `1px solid ${catColor}44`, borderRadius: 'var(--r)' }}>
+                <div style={{ fontSize: 11, color: catColor, marginBottom: 8, fontWeight: 600 }}>
+                  Relazione con {el.name}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input type="text" placeholder="Tipo di relazione (es. Fratello, Nemico…)"
+                    value={to.rel}
+                    onChange={e => updateTagField(editingTag, 'rel', e.target.value)}
+                    style={{ flex: 1, minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {TAG_IMPORTANCE.map(imp => (
+                      <button key={imp} type="button" onClick={() => updateTagField(editingTag, 'importance', imp)}
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                          background: to.importance === imp ? TAG_IMP_COLOR[imp] + '33' : 'var(--surface)',
+                          border: `1px solid ${to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--border)'}`,
+                          color: to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--text-muted)' }}>
+                        {TAG_IMP_LABEL[imp]} {imp}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setEditingTag(null)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✓</button>
+                </div>
               </div>
             );
           })()}

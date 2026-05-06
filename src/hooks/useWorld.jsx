@@ -17,6 +17,28 @@ export const BUILTIN_CATS = [
   { id: 'event',  name: 'Eventi',     icon: '⚡', color: '#b88fc4', colorDim: '#3a2848', subs: [], builtin: true },
 ];
 
+// ── Helpers formato tag ──────────────────────────────────────────────────
+// I tag possono essere stringhe (vecchio formato) o oggetti { id, rel, importance }
+export const TAG_IMPORTANCE = ['alta', 'media', 'bassa', 'trascurabile'];
+export const TAG_IMP_LABEL  = { alta: '❤❤❤', media: '❤❤', bassa: '❤', trascurabile: '·' };
+export const TAG_IMP_COLOR  = { alta: '#e07070', media: '#d4a84c', bassa: '#7ab8d4', trascurabile: '#555' };
+
+// Estrai l'ID da un tag (stringa o oggetto)
+export const tagId  = (t) => (typeof t === 'string' ? t : t?.id);
+// Converti tag in oggetto normalizzato
+export const tagObj = (t) => typeof t === 'string'
+  ? { id: t, rel: '', importance: 'media' }
+  : { id: t.id, rel: t.rel || '', importance: t.importance || 'media' };
+// Ordina tag per importanza
+export const sortTags = (tags) => {
+  const order = { alta: 0, media: 1, bassa: 2, trascurabile: 3 };
+  return [...(tags || [])].sort((a, b) => {
+    const ia = order[tagObj(a).importance] ?? 1;
+    const ib = order[tagObj(b).importance] ?? 1;
+    return ia - ib;
+  });
+};
+
 const WorldContext = createContext(null);
 
 export function WorldProvider({ uid, wid, children }) {
@@ -55,7 +77,7 @@ export function WorldProvider({ uid, wid, children }) {
   const fazById   = (id) => fazioni.find(f => f.id === id);
   const magById   = (id) => magie.find(m => m.id === id);
 
-  const backlinks    = (id) => elements.filter(e => e.id !== id && (e.tags || []).includes(id));
+  const backlinks    = (id) => elements.filter(e => e.id !== id && (e.tags || []).some(t => tagId(t) === id));
   const arcsByMember = (id) => arcs.filter(a => (a.members || []).includes(id));
   const fazioniOfEl  = (id) => fazioni.filter(f => (f.members || []).includes(id));
   const magieOfEl    = (id) => magie.filter(m => (m.users || []).includes(id));
@@ -74,13 +96,14 @@ export function WorldProvider({ uid, wid, children }) {
     addElement(uid, wid, { powers: [], equip: [], changelog: [], tags: [], status: 'draft', ...data });
 
   const updateEl = async (eid, changes) => {
-    // Se i tag cambiano, sincronizza i tag inversi sugli altri elementi
     if ('tags' in changes) {
       const current = elements.find(e => e.id === eid);
-      const oldTags = current?.tags || [];
-      const newTags = changes.tags || [];
+      // Normalizza in array di ID per il confronto
+      const oldIds  = (current?.tags || []).map(tagId);
+      const newIds  = (changes.tags  || []).map(tagId);
       await updateElement(uid, wid, eid, changes);
-      await syncBidirectionalTags(uid, wid, eid, oldTags, newTags);
+      // Passa gli ID semplici a syncBidirectionalTags
+      await syncBidirectionalTags(uid, wid, eid, oldIds, newIds);
     } else {
       await updateElement(uid, wid, eid, changes);
     }
@@ -123,6 +146,7 @@ export function WorldProvider({ uid, wid, children }) {
     elements, arcs, fazioni, magie, cats, loading,
     uid, wid,
     allCats, catById, elById, arcById, fazById, magById,
+    tagId, tagObj, sortTags,
     backlinks, arcsByMember, fazioniOfEl, magieOfEl,
     elColor, elColorDim, elIcon, elLabel,
     addEl, updateEl, deleteEl,

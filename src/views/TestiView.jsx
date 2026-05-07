@@ -27,11 +27,39 @@ export default function TestiView({ onAnalyze, showToast }) {
   const [newName,     setNewName]     = useState('');
   const [newText,     setNewText]     = useState('');
   const [newSep,      setNewSep]      = useState('');
-  const [loadingText, setLoadingText] = useState(null); // id testo in caricamento
+  const [loadingText, setLoadingText] = useState(null);
+  const [readingText, setReadingText] = useState(null); // { text, content, chapters }
 
   // Rinomina inline
   const [renaming,    setRenaming]    = useState(null); // id
   const [renameVal,   setRenameVal]   = useState('');
+
+  // Divide il testo in capitoli per la vista lettura
+  const splitForReading = (text, customSep = '') => {
+    const lines = text.split('\n');
+    const chapters = [];
+    let current = { title: 'Inizio', lines: [] };
+    const sepRegex = customSep.trim()
+      ? new RegExp('^' + customSep.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(.*)$', 'i')
+      : null;
+    for (const line of lines) {
+      const isCustom = sepRegex && sepRegex.test(line.trim());
+      const isAuto   = !customSep.trim() && (
+        /^#{1,3}\s/.test(line) ||
+        /^(capitolo|chapter|parte|part|prologo|epilogo)\s/i.test(line.trim()) ||
+        /^[-=]{3,}$/.test(line.trim())
+      );
+      if ((isCustom || isAuto) && current.lines.length > 5) {
+        chapters.push({ ...current, text: current.lines.join('\n').trim() });
+        let title = line.replace(/^#{1,3}\s/, '').trim() || `Sezione ${chapters.length + 1}`;
+        current = { title, lines: [] };
+      } else {
+        current.lines.push(line);
+      }
+    }
+    if (current.lines.length > 0) chapters.push({ ...current, text: current.lines.join('\n').trim() });
+    return chapters.filter(c => c.text.length > 20);
+  };
 
   useEffect(() => {
     if (!uid || !wid) return;
@@ -67,6 +95,19 @@ export default function TestiView({ onAnalyze, showToast }) {
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleRead = async (textMeta) => {
+    setLoadingText(textMeta.id);
+    try {
+      const content = await loadTextContent(uid, wid, textMeta.id);
+      const chapters = splitForReading(content, textMeta.customSep || '');
+      setReadingText({ meta: textMeta, content, chapters });
+    } catch (e) {
+      showToast('⚠ Errore nel caricamento del testo');
+      console.error(e);
+    }
+    setLoadingText(null);
   };
 
   const handleAnalyze = async (text) => {
@@ -220,6 +261,11 @@ export default function TestiView({ onAnalyze, showToast }) {
                     onClick={() => { setRenaming(text.id); setRenameVal(text.name); }}>
                     ✏
                   </button>
+                  <button className="btn-g" style={{ fontSize: 12 }}
+                    onClick={() => handleRead(text)}
+                    disabled={loadingText === text.id}>
+                    📖 Leggi
+                  </button>
                   <button className="btn-p" style={{ fontSize: 12 }}
                     onClick={() => handleAnalyze(text)}
                     disabled={loadingText === text.id}>
@@ -233,6 +279,61 @@ export default function TestiView({ onAnalyze, showToast }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Vista lettura ── */}
+      {readingText && (
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 800, display: 'flex', flexDirection: 'column' }}>
+
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+            <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setReadingText(null)}>← Chiudi</button>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--text)', flex: 1 }}>
+              {readingText.meta.name}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {formatSize(readingText.meta.charCount || readingText.content.length)}
+            </div>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+            {/* Indice capitoli */}
+            {readingText.chapters.length > 1 && (
+              <div style={{ width: 220, flexShrink: 0, borderRight: '1px solid var(--border)', overflowY: 'auto', padding: '14px 0' }}>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', padding: '0 14px 10px' }}>
+                  Indice — {readingText.chapters.length} sezioni
+                </div>
+                {readingText.chapters.map((ch, i) => (
+                  <div key={i}
+                    onClick={() => document.getElementById(`chapter-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    style={{ padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.4, borderLeft: '2px solid transparent', transition: 'all .15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderLeftColor = 'var(--gold-dim)'; e.currentTarget.style.background = 'var(--surface2)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderLeftColor = 'transparent'; e.currentTarget.style.background = ''; }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', marginRight: 6 }}>{i + 1}.</span>
+                    {ch.title.length > 30 ? ch.title.slice(0, 30) + '…' : ch.title}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Testo */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '32px 48px', maxWidth: 780, margin: '0 auto' }}>
+              {readingText.chapters.map((ch, i) => (
+                <div key={i} id={`chapter-${i}`} style={{ marginBottom: 48 }}>
+                  {readingText.chapters.length > 1 && (
+                    <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: 'var(--gold)', marginBottom: 20, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                      {ch.title}
+                    </h2>
+                  )}
+                  <div style={{ fontSize: 16, color: 'var(--text-dim)', lineHeight: 1.9, fontFamily: "'Crimson Pro', serif", whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {ch.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

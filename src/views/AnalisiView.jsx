@@ -1,6 +1,7 @@
 // src/views/AnalisiView.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useWorld } from '../hooks/useWorld';
+import { TAG_IMPORTANCE, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
 import ElementModal from '../components/ElementModal';
 import {
   subscribeProposals, saveProposals,
@@ -342,8 +343,8 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
 
   // Modal accetta (solo per nuovo_elemento)
   const [acceptModal,   setAcceptModal]   = useState(null);
-  // Conferma inline per modifiche dirette
-  const [confirmProp,   setConfirmProp]   = useState(null); // { proposal, preview }
+  // Form intermedio per modifiche dirette
+  const [editForm,      setEditForm]      = useState(null); // { proposal, elA, elB, elC, fields }
   const [applying,      setApplying]      = useState(false);
 
   const [customSep,    setCustomSep]    = useState('');
@@ -462,75 +463,92 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
     showToast('Proposta scartata');
   };
 
-  // ── Accetta proposta ──
+  // ── Accetta proposta — apre form intermedio editabile ──
   const handleAccept = async (proposal) => {
     const tipo = proposal.tipo;
 
-    // nuovo_elemento → apre ElementModal (crea nuovo)
     if (tipo === 'nuovo_elemento') {
       setAcceptModal(proposal);
       return;
     }
 
-    // Tutti gli altri tipi → mostra conferma inline con anteprima
     const elA = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_a || '').toLowerCase());
     const elB = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_b || '').toLowerCase());
     const elC = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_coinvolto || '').toLowerCase());
 
-    let preview = '';
     if (tipo === 'nuovo_potere') {
-      if (!elC) { showToast('⚠ Elemento non trovato nella bibbia'); return; }
-      preview = `Aggiunge il potere "${proposal.dati?.power_name}" a ${elC.name}`;
+      if (!elC) { showToast('⚠ Elemento non trovato'); return; }
+      setEditForm({
+        proposal, elC,
+        fields: {
+          power_name:      proposal.dati?.power_name || proposal.titolo || '',
+          power_desc:      proposal.dati?.power_desc || proposal.descrizione || '',
+          power_intensita: proposal.dati?.power_intensita || 'media',
+          power_magiaId:   '',
+        }
+      });
     } else if (tipo === 'modifica_desc') {
-      if (!elC) { showToast('⚠ Elemento non trovato nella bibbia'); return; }
-      preview = `Aggiorna la descrizione di ${elC.name}`;
+      if (!elC) { showToast('⚠ Elemento non trovato'); return; }
+      setEditForm({
+        proposal, elC,
+        fields: {
+          nuova_desc: proposal.dati?.nuova_desc || proposal.descrizione || elC.desc || '',
+        }
+      });
     } else if (tipo === 'nuova_connessione' || tipo === 'modifica_tag') {
       if (!elA || !elB) { showToast('⚠ Uno o entrambi gli elementi non trovati'); return; }
-      preview = `Collega "${elA.name}" ↔ "${elB.name}"`;
+      setEditForm({
+        proposal, elA, elB,
+        fields: {
+          rel:        proposal.dati?.relazione || '',
+          importance: 'media',
+        }
+      });
     } else if (tipo === 'incongruenza' || tipo === 'approfondimento') {
-      // Aggiunge una nota all'elemento coinvolto, o apre modal per prendere nota
       if (elC) {
-        preview = `Aggiunge una nota a ${elC.name}`;
+        setEditForm({
+          proposal, elC,
+          fields: {
+            nota: `[${tipo === 'incongruenza' ? 'INCONGRUENZA' : 'APPROFONDIMENTO'} — ${proposal.capitolo || ''}]
+${proposal.descrizione}`,
+          }
+        });
       } else {
         setAcceptModal(proposal);
-        return;
       }
     }
-
-    setConfirmProp({ proposal, preview, elA, elB, elC });
   };
 
   // ── Applica modifica diretta all'elemento ──
   const applyDirect = async () => {
-    if (!confirmProp || applying) return;
+    if (!editForm || applying) return;
     setApplying(true);
-    const { proposal, elA, elB, elC } = confirmProp;
+    const { proposal, elA, elB, elC, fields } = editForm;
     const tipo = proposal.tipo;
 
     try {
       if (tipo === 'nuovo_potere' && elC) {
         const newPower = {
-          name:      proposal.dati.power_name || proposal.titolo,
-          desc:      proposal.dati.power_desc || proposal.descrizione,
-          intensita: proposal.dati.power_intensita || 'media',
-          magiaId:   '',
+          name:      fields.power_name,
+          desc:      fields.power_desc,
+          intensita: fields.power_intensita,
+          magiaId:   fields.power_magiaId || '',
         };
         await updateEl(elC.id, { powers: [...(elC.powers || []), newPower] });
         showToast(`✓ Potere aggiunto a ${elC.name}`);
 
       } else if (tipo === 'modifica_desc' && elC) {
-        await updateEl(elC.id, { desc: proposal.dati.nuova_desc || proposal.descrizione });
+        await updateEl(elC.id, { desc: fields.nuova_desc });
         showToast(`✓ Descrizione di ${elC.name} aggiornata`);
 
       } else if ((tipo === 'nuova_connessione' || tipo === 'modifica_tag') && elA && elB) {
-        // Tag bidirezionale — updateEl gestisce syncBidirectionalTags
-        const tagsA = [...new Set([...(elA.tags || []), elB.id])];
+        const newTag = { id: elB.id, rel: fields.rel || '', importance: fields.importance || 'media' };
+        const tagsA  = [...(elA.tags || []).filter(t => (typeof t === 'string' ? t : t?.id) !== elB.id), newTag];
         await updateEl(elA.id, { tags: tagsA });
         showToast(`✓ Collegamento aggiunto tra ${elA.name} e ${elB.name}`);
 
       } else if ((tipo === 'incongruenza' || tipo === 'approfondimento') && elC) {
-        const nota = `[${tipo === 'incongruenza' ? 'INCONGRUENZA' : 'APPROFONDIMENTO'} — ${proposal.capitolo || ''}]\n${proposal.descrizione}`;
-        const notePrev = elC.notes ? elC.notes + '\n\n' + nota : nota;
+        const notePrev = elC.notes ? elC.notes + '\n\n' + fields.nota : fields.nota;
         await updateEl(elC.id, { notes: notePrev });
         showToast(`✓ Nota aggiunta a ${elC.name}`);
       }
@@ -542,8 +560,10 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
     }
 
     setApplying(false);
-    setConfirmProp(null);
+    setEditForm(null);
   };
+
+  const setField = (key, val) => setEditForm(f => ({ ...f, fields: { ...f.fields, [key]: val } }));
 
   // ── Costruisce initialData per ElementModal dalla proposta ──
   const proposalToInitialData = (proposal) => {
@@ -916,45 +936,128 @@ ${targetEl?.notes || ''}`,
       </div>
 
       {/* ── Conferma modifica diretta ── */}
-      {confirmProp && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 12, padding: '24px 28px', maxWidth: 420, width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,.7)' }}>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--text)', marginBottom: 12 }}>Conferma modifica</div>
-            <div style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 16 }}>
-              {confirmProp.preview}
+      {/* ── Form intermedio modifica ── */}
+      {editForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.75)', zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 12, padding: '24px 28px', maxWidth: 480, width: '100%', boxShadow: '0 16px 48px rgba(0,0,0,.7)', maxHeight: '85vh', overflowY: 'auto' }}>
+
+            {/* Header */}
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, color: 'var(--text)', marginBottom: 6 }}>
+              {TIPO_META[editForm.proposal.tipo]?.icon} {TIPO_META[editForm.proposal.tipo]?.label}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 18, lineHeight: 1.5 }}>
+              {editForm.proposal.descrizione}
             </div>
 
-            {/* Anteprima modifica desc */}
-            {confirmProp.proposal.tipo === 'modifica_desc' && confirmProp.proposal.dati?.nuova_desc && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 6 }}>Nuova descrizione</div>
-                <div style={{ fontSize: 13, color: 'var(--text-dim)', background: 'var(--surface2)', padding: '10px 12px', borderRadius: 7, lineHeight: 1.6 }}>
-                  {confirmProp.proposal.dati.nuova_desc}
+            {/* ── Form: nuovo potere ── */}
+            {editForm.proposal.tipo === 'nuovo_potere' && editForm.elC && (
+              <div>
+                <div style={{ fontSize: 11, color: '#c89fd4', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+                  Aggiunge potere a <strong>{editForm.elC.name}</strong>
                 </div>
-                {confirmProp.elC?.desc && (
-                  <div style={{ marginTop: 8 }}>
-                    <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 4 }}>Descrizione attuale</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface2)', padding: '8px 12px', borderRadius: 7, lineHeight: 1.5, fontStyle: 'italic', textDecoration: 'line-through', opacity: .6 }}>
-                      {confirmProp.elC.desc.slice(0, 200)}{confirmProp.elC.desc.length > 200 ? '…' : ''}
-                    </div>
+                <div className="fg">
+                  <label className="fl">Nome potere</label>
+                  <input className="fi" value={editForm.fields.power_name}
+                    onChange={e => setField('power_name', e.target.value)} autoFocus />
+                </div>
+                <div className="fg">
+                  <label className="fl">Descrizione</label>
+                  <textarea className="ft" value={editForm.fields.power_desc}
+                    onChange={e => setField('power_desc', e.target.value)} style={{ minHeight: 80 }} />
+                </div>
+                <div className="fg">
+                  <label className="fl">Intensità</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {['bassa','media','alta','assoluta'].map(i => (
+                      <button key={i} type="button" onClick={() => setField('power_intensita', i)}
+                        style={{ flex: 1, padding: '6px 4px', fontSize: 12, borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                          background: editForm.fields.power_intensita === i ? 'var(--surface3)' : 'var(--surface2)',
+                          border: `1px solid ${editForm.fields.power_intensita === i ? 'var(--gold-dim)' : 'var(--border)'}`,
+                          color: editForm.fields.power_intensita === i ? 'var(--gold)' : 'var(--text-muted)' }}>
+                        {i}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="fg">
+                  <label className="fl">Sistema di magia (opzionale)</label>
+                  <select className="fs" value={editForm.fields.power_magiaId}
+                    onChange={e => setField('power_magiaId', e.target.value)}>
+                    <option value="">— Nessuno —</option>
+                    {magie.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* ── Form: modifica descrizione ── */}
+            {editForm.proposal.tipo === 'modifica_desc' && editForm.elC && (
+              <div>
+                <div style={{ fontSize: 11, color: '#a0d0c0', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+                  Aggiorna descrizione di <strong>{editForm.elC.name}</strong>
+                </div>
+                {editForm.elC.desc && (
+                  <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 7, fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.5, textDecoration: 'line-through', opacity: .6 }}>
+                    {editForm.elC.desc.slice(0, 200)}{editForm.elC.desc.length > 200 ? '…' : ''}
                   </div>
                 )}
+                <div className="fg">
+                  <label className="fl">Nuova descrizione</label>
+                  <textarea className="ft" value={editForm.fields.nuova_desc}
+                    onChange={e => setField('nuova_desc', e.target.value)} style={{ minHeight: 100 }} autoFocus />
+                </div>
               </div>
             )}
 
-            {/* Anteprima nuovo potere */}
-            {confirmProp.proposal.tipo === 'nuovo_potere' && (
-              <div style={{ marginBottom: 16, background: 'var(--surface2)', padding: '10px 12px', borderRadius: 7 }}>
-                <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{confirmProp.proposal.dati?.power_name}</div>
-                <div style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 4 }}>{confirmProp.proposal.dati?.power_intensita}</div>
-                {confirmProp.proposal.dati?.power_desc && <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>{confirmProp.proposal.dati.power_desc}</div>}
+            {/* ── Form: nuova connessione / modifica tag ── */}
+            {(editForm.proposal.tipo === 'nuova_connessione' || editForm.proposal.tipo === 'modifica_tag') && editForm.elA && editForm.elB && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 14, color: 'var(--text)' }}>
+                  <span style={{ fontStyle: 'italic' }}>{editForm.elA.name}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>↔</span>
+                  <span style={{ fontStyle: 'italic' }}>{editForm.elB.name}</span>
+                </div>
+                <div className="fg">
+                  <label className="fl">Tipo di relazione (opzionale)</label>
+                  <input className="fi" placeholder="Es. Fratello, Nemico, Alleato…"
+                    value={editForm.fields.rel}
+                    onChange={e => setField('rel', e.target.value)} autoFocus />
+                </div>
+                <div className="fg">
+                  <label className="fl">Importanza del collegamento</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {TAG_IMPORTANCE.map(imp => (
+                      <button key={imp} type="button" onClick={() => setField('importance', imp)}
+                        style={{ flex: 1, padding: '6px 4px', fontSize: 11, borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                          background: editForm.fields.importance === imp ? TAG_IMP_COLOR[imp] + '33' : 'var(--surface2)',
+                          border: `1px solid ${editForm.fields.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--border)'}`,
+                          color: editForm.fields.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--text-muted)' }}>
+                        {TAG_IMP_LABEL[imp]} {imp}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button className="btn-g" onClick={() => setConfirmProp(null)} disabled={applying}>Annulla</button>
+            {/* ── Form: incongruenza / approfondimento ── */}
+            {(editForm.proposal.tipo === 'incongruenza' || editForm.proposal.tipo === 'approfondimento') && editForm.elC && (
+              <div>
+                <div style={{ fontSize: 11, color: editForm.proposal.tipo === 'incongruenza' ? '#e07070' : '#d4a84c', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+                  Nota per <strong>{editForm.elC.name}</strong>
+                </div>
+                <div className="fg">
+                  <label className="fl">Nota da aggiungere</label>
+                  <textarea className="ft" value={editForm.fields.nota}
+                    onChange={e => setField('nota', e.target.value)} style={{ minHeight: 100 }} autoFocus />
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+              <button className="btn-g" onClick={() => setEditForm(null)} disabled={applying}>Annulla</button>
               <button className="btn-p" onClick={applyDirect} disabled={applying}>
-                {applying ? '⏳ Applicazione…' : '✓ Applica modifica'}
+                {applying ? '⏳ Applicazione…' : '✓ Applica'}
               </button>
             </div>
           </div>

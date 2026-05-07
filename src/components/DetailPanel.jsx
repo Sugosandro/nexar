@@ -660,7 +660,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
               {(!mag.users?.length) && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13 }}>Nessuno</span>}
             </div>
           </div>
-          {/* Poteri collegati a questo sistema */}
+          {/* Poteri collegati a questo sistema — raggruppati per nome potere */}
           {(() => {
             const linkedPowers = elements.flatMap(e =>
               (e.powers || [])
@@ -668,25 +668,44 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
                 .map(p => ({ ...p, owner: e }))
             );
             if (!linkedPowers.length) return null;
+
+            // Raggruppa per nome potere (case-insensitive)
+            const grouped = {};
+            linkedPowers.forEach(p => {
+              const key = p.name?.toLowerCase() || '?';
+              if (!grouped[key]) grouped[key] = { name: p.name, desc: p.desc, users: [] };
+              grouped[key].users.push({ owner: p.owner, intensita: p.intensita });
+            });
+
+            const INTENSITA_COLOR = { bassa: '#8fbd7c', media: '#d4a84c', alta: '#d4956a', assoluta: '#c89fd4' };
+
             return (
               <div className="dp-sec">
                 <div className="dp-lbl">Poteri collegati</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {linkedPowers.map((p, i) => {
-                    const INTENSITA = { bassa: '#8fbd7c', media: '#d4a84c', alta: '#d4956a', assoluta: '#c89fd4' };
-                    const col = INTENSITA[p.intensita] || '#888';
-                    return (
-                      <div key={i} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '8px 12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: p.desc ? 4 : 0 }}>
-                          <span style={{ flex: 1, fontFamily: "'Playfair Display', serif", fontSize: 14, color: 'var(--text)' }}>{p.name}</span>
-                          <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: col + '22', color: col, border: `1px solid ${col}44` }}>{p.intensita}</span>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', cursor: 'pointer' }}
-                            onClick={() => onOpen('element', p.owner.id)}>→ {p.owner.name}</span>
-                        </div>
-                        {p.desc && <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>{p.desc}</div>}
+                  {Object.values(grouped).map((g, i) => (
+                    <div key={i} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '8px 12px' }}>
+                      {/* Nome potere + descrizione */}
+                      <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: 'var(--text)', marginBottom: 6 }}>
+                        {g.name}
                       </div>
-                    );
-                  })}
+                      {g.desc && <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5, marginBottom: 6 }}>{g.desc}</div>}
+                      {/* Personaggi che lo usano */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {g.users.map((u, j) => {
+                          const col = INTENSITA_COLOR[u.intensita] || '#888';
+                          return (
+                            <span key={j}
+                              onClick={() => onOpen('element', u.owner.id)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '2px 8px', borderRadius: 20, background: col + '18', border: `1px solid ${col}44`, color: 'var(--text-dim)', cursor: 'pointer' }}>
+                              <span style={{ fontSize: 10, color: col }}>{u.intensita}</span>
+                              <span>{u.owner.name}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             );

@@ -10,7 +10,8 @@ import ArcsView from '../views/ArcsView';
 import ConnectionsView from '../views/ConnectionsView';
 import MapView from '../views/MapView';
 import AnalisiView from '../views/AnalisiView';
-import TestiView  from '../views/TestiView';
+import TestiView   from '../views/TestiView';
+import EditorView  from '../views/EditorView';
 import DetailPanel from './DetailPanel';
 import CatModal from './CatModal';
 import Toast from './Toast';
@@ -26,6 +27,7 @@ const VIEWS = [
   { id: 'connections', label: '🕸 Connessioni',  component: ConnectionsView },
   { id: 'analisi',     label: '🔍 Analisi',      component: AnalisiView },
   { id: 'testi',       label: '📄 Testi',         component: TestiView },
+  { id: 'editor',      label: '✍ Editor',        component: EditorView },
 ];
 
 export default function AppShell({ user, worldId, worldName, onChangeWorld }) {

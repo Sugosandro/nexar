@@ -415,3 +415,49 @@ export async function deleteText(uid, wid, tid) {
     ),
   ]);
 }
+
+
+// ══════════════════════════════════════════════
+// CAPITOLI EDITOR
+// ══════════════════════════════════════════════
+
+export function subscribeChapters(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'chapters'), orderBy('order', 'asc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function addChapter(uid, wid, data) {
+  const ref = await addDoc(colRef(uid, wid, 'chapters'), {
+    title:     data.title     || 'Nuovo capitolo',
+    content:   data.content   || '',
+    order:     data.order     ?? 0,
+    status:    data.status    || 'draft',
+    wordCount: data.wordCount || 0,
+    notes:     data.notes     || '',
+    tags:      data.tags      || [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateChapter(uid, wid, cid, changes) {
+  await updateDoc(docRef(uid, wid, 'chapters', cid), {
+    ...changes,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteChapter(uid, wid, cid) {
+  await deleteDoc(docRef(uid, wid, 'chapters', cid));
+}
+
+export async function reorderChapters(uid, wid, orderedIds) {
+  await Promise.all(
+    orderedIds.map((id, i) =>
+      updateDoc(docRef(uid, wid, 'chapters', id), { order: i })
+    )
+  );
+}

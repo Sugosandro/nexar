@@ -149,10 +149,12 @@ TESTO DA ANALIZZARE — ${chapterTitle} (${chapterIndex+1}/${totalChapters}):
 ${chapterText}
 
 Analizza questo capitolo e identifica:
-1. INCONGRUENZE: fatti nel testo che contraddicono la storia — nomi sbagliati, relazioni impossibili, proprietà fisiche errate, continuity errors, personaggi che conoscono cose che non dovrebbero sapere, poteri usati in modo incompatibile con le regole del sistema di magia, equipaggiamento usato da chi non lo possiede, spostamenti impossibili rispetto allo storico narrativo
-2. NUOVI ELEMENTI: personaggi, luoghi, oggetti o eventi menzionati nel testo ma completamente assenti dalla bibbia
-3. NUOVE CONNESSIONI: relazioni tra elementi già esistenti in bibbia che emergono dal testo ma non sono registrate come connessioni (tag) — es. due personaggi che si conoscono, un oggetto che appartiene a qualcuno, un personaggio che fa parte di una fazione non registrata
-4. APPROFONDIMENTI: dettagli narrativi rilevanti nel testo che arricchirebbero la bibbia — backstory, motivazioni, descrizioni fisiche, abilità specifiche, date o luoghi storici
+1. INCONGRUENZE: fatti nel testo che contraddicono la storia — nomi sbagliati, relazioni impossibili, continuity errors, poteri usati in modo incompatibile, equipaggiamento usato da chi non lo possiede,poteri usati in modo incompatibile con le regole del sistema di magia
+2. NUOVI ELEMENTI: personaggi, luoghi, oggetti o eventi menzionati nel testo ma assenti dalla storia
+3. NUOVE CONNESSIONI: relazioni tra elementi esistenti nella storia che emergono dal testo ma non sono registrate
+4. APPROFONDIMENTI: dettagli narrativi rilevanti che arricchirebbero la storia - backstory, motivazioni, descrizioni fisiche, abilità specifiche, date o luoghi storici
+
+IMPORTANTE — sii conciso: "titolo" max 60 caratteri, "descrizione" max 120 caratteri, "desc" nei dati max 100 caratteri. Preferisci qualità a quantità: segnala solo le osservazioni più rilevanti.
 
 Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta deve avere questa struttura:
 [
@@ -431,7 +433,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            max_tokens: 6000,
+            max_tokens: 8000,
             messages: [{
               role: 'user',
               content: buildChapterPrompt(chap.text, chap.title, worldContext, i, chapters.length),
@@ -445,29 +447,47 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         }
 
         const data = await response.json();
-        const raw = data.content?.find(b => b.type === 'text')?.text || '[]';
+        const raw = data.content?.find(b => b.type === 'text')?.text || '';
+        console.log(`[analisi] cap ${i+1} — stop_reason:`, data.stop_reason, '— raw (primi 600 chars):', raw.slice(0, 600));
+        if (data.stop_reason === 'max_tokens') {
+          setError(prev => (prev ? prev + '\n' : '') + `⚠ Cap. "${chap.title}": risposta troncata (troppo lunga). Le proposte estratte potrebbero essere incomplete.`);
+        }
 
-        // Parsing robusto — gestisce JSON troncato o con testo extra
+        // Parsing robusto — gestisce markdown code block, testo prima/dopo, JSON troncato
         let parsed = [];
         try {
+          // 1) Rimuovi eventuali delimitatori markdown ```json ... ```
+          const cleaned = raw.trim()
+            .replace(/^```(?:json)?\s*/i, '')
+            .replace(/\s*```\s*$/i, '')
+            .trim();
+          // 2) Prova parse diretto del testo pulito
+          const direct = JSON.parse(cleaned);
+          if (Array.isArray(direct)) parsed = direct;
+        } catch {
+          // 3) Estrai il primo array JSON trovato nel testo
           const match = raw.match(/\[[\s\S]*\]/);
           if (match) {
-            parsed = JSON.parse(match[0]);
-          }
-        } catch {
-          // JSON troncato — recupera oggetti completi uno per uno
-          const objMatches = raw.matchAll(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
-          for (const m of objMatches) {
             try {
-              const obj = JSON.parse(m[0]);
-              if (obj.titolo && obj.tipo) parsed.push(obj);
-            } catch { /* oggetto malformato, salta */ }
+              const attempt = JSON.parse(match[0]);
+              if (Array.isArray(attempt)) parsed = attempt;
+            } catch {
+              // 4) Recupera oggetti completi uno per uno (risposta troncata)
+              const objMatches = raw.matchAll(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g);
+              for (const m of objMatches) {
+                try {
+                  const obj = JSON.parse(m[0]);
+                  if (obj.titolo && obj.tipo) parsed.push(obj);
+                } catch { /* oggetto malformato */ }
+              }
+            }
           }
         }
-        // Deduplicazione per titolo
+        console.log(`[analisi] cap ${i+1} — parsed:`, parsed.length, 'proposte');
+
+        // Deduplicazione per titolo (solo dentro il batch corrente)
         for (const p of parsed) {
-          const isDup = newProposals.some(ex => ex.titolo === p.titolo) ||
-                        proposals.some(ex => ex.titolo === p.titolo);
+          const isDup = newProposals.some(ex => ex.titolo === p.titolo);
           if (!isDup && p.titolo && p.tipo) {
             newProposals.push(p);
           }
@@ -483,7 +503,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
       await saveProposals(uid, wid, newProposals);
       showToast(`✓ ${newProposals.length} nuove proposte generate`);
     } else {
-      showToast('Analisi completata — nessuna nuova proposta');
+      showToast('Analisi completata — 0 proposte (controlla console browser per dettagli)');
     }
 
     setAnalyzing(false);

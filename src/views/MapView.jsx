@@ -2,11 +2,45 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useWorld } from '../hooks/useWorld';
 import { getMap, saveMap } from '../firebase/db';
 
+const IMP_KEYS_DATE  = ['protagonista', 'primario', 'secondario', 'minore'];
+const IMP_LABEL_DATE = { protagonista: 'Protagonisti', primario: 'Primari', secondario: 'Secondari', minore: 'Minori' };
+
+function EventDateRow({ ev, selected, onSelect }) {
+  return (
+    <div onClick={onSelect}
+      style={{ padding: '9px 12px 9px 22px', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: selected ? 'var(--surface2)' : '' }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+      onMouseLeave={e => e.currentTarget.style.background = selected ? 'var(--surface2)' : ''}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13, flexShrink: 0 }}>⚡</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.name}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{ev.date}</div>
+        </div>
+        {selected && <span style={{ fontSize: 11, color: 'var(--gold)', flexShrink: 0 }}>✓</span>}
+      </div>
+    </div>
+  );
+}
+
 function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
-  const [open,  setOpen]  = useState(false);
-  const [query, setQuery] = useState('');
-  const filtered = query ? dateEvents.filter(e => e.name.toLowerCase().includes(query.toLowerCase()) || e.date.includes(query)) : dateEvents;
+  const [open,      setOpen]      = useState(false);
+  const [query,     setQuery]     = useState('');
+  const [collapsed, setCollapsed] = useState(new Set());
+
+  const toggleGroup = (key) => setCollapsed(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next;
+  });
+
   const selectedEvent = dateEvents.find(e => e.date === timeFilter);
+  const filtered = query
+    ? dateEvents.filter(e => e.name.toLowerCase().includes(query.toLowerCase()) || e.date.includes(query))
+    : null;
+  const groups    = IMP_KEYS_DATE
+    .map(k => ({ key: k, label: IMP_LABEL_DATE[k], events: dateEvents.filter(e => e.importance === k) }))
+    .filter(g => g.events.length > 0);
+  const ungrouped = dateEvents.filter(e => !IMP_KEYS_DATE.includes(e.importance));
+
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${open ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 200, cursor: 'pointer', transition: 'border-color .2s' }} onClick={() => setOpen(o => !o)}>
@@ -21,34 +55,49 @@ function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
             <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'Crimson Pro', serif" }}>Scegli un momento…</span>
           )}
         </div>
-        {timeFilter ? <button onClick={e => { e.stopPropagation(); setTimeFilter(''); setQuery(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✕</button>
+        {timeFilter
+          ? <button onClick={e => { e.stopPropagation(); setTimeFilter(''); setQuery(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, flexShrink: 0 }}>✕</button>
           : <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>▼</span>}
       </div>
       {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 280, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 300, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-            <input type="text" placeholder="Cerca evento o scrivi data…" value={query} onChange={e => setQuery(e.target.value)} autoFocus style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
+            <input type="text" placeholder="Cerca evento o scrivi data…" value={query} onChange={e => setQuery(e.target.value)} autoFocus
+              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
           </div>
-          <div style={{ maxHeight: 280, overflowY: 'auto' }}>
-            {query && !filtered.find(e => e.date === query) && (
-              <div onClick={() => { setTimeFilter(query); setOpen(false); setQuery(''); }} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            {query && !(filtered || []).find(e => e.date === query) && (
+              <div onClick={() => { setTimeFilter(query); setOpen(false); setQuery(''); }}
+                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                onMouseLeave={e => e.currentTarget.style.background = ''}>
                 <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: 'var(--surface3)', color: 'var(--text-muted)' }}>Usa data</span>
                 <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: "'Crimson Pro', serif" }}>{query}</span>
               </div>
             )}
-            {filtered.length === 0 && !query && <div style={{ padding: '16px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun evento con data nella timeline</div>}
-            {filtered.map(ev => (
-              <div key={ev.id} onClick={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }} style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: timeFilter === ev.date ? 'var(--surface2)' : '' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'} onMouseLeave={e => e.currentTarget.style.background = timeFilter === ev.date ? 'var(--surface2)' : ''}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>⚡</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{ev.date}</div>
+            {filtered ? (
+              filtered.length === 0
+                ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun risultato</div>
+                : filtered.map(ev => <EventDateRow key={ev.id} ev={ev} selected={timeFilter === ev.date} onSelect={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }} />)
+            ) : (
+              <>
+                {groups.map(g => (
+                  <div key={g.key}>
+                    <div onClick={() => toggleGroup(g.key)}
+                      style={{ padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 1, userSelect: 'none' }}>
+                      <span style={{ fontSize: 9, color: 'var(--text-muted)', width: 10 }}>{collapsed.has(g.key) ? '▶' : '▼'}</span>
+                      <span style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 600, flex: 1, letterSpacing: '.04em' }}>{g.label}</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{g.events.length}</span>
+                    </div>
+                    {!collapsed.has(g.key) && g.events.map(ev => (
+                      <EventDateRow key={ev.id} ev={ev} selected={timeFilter === ev.date} onSelect={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }} />
+                    ))}
                   </div>
-                  {timeFilter === ev.date && <span style={{ fontSize: 11, color: 'var(--gold)', flexShrink: 0 }}>✓</span>}
-                </div>
-              </div>
-            ))}
+                ))}
+                {ungrouped.map(ev => <EventDateRow key={ev.id} ev={ev} selected={timeFilter === ev.date} onSelect={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }} />)}
+                {dateEvents.length === 0 && <div style={{ padding: '16px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun evento con data nella timeline</div>}
+              </>
+            )}
           </div>
         </div>
       )}
@@ -56,11 +105,123 @@ function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
   );
 }
 
+// Converte date DD/MM/YYYY → numero YYYYMMDD; anno singolo → fine anno (YYYY9999)
+const parseDate = (str) => {
+  if (!str) return 0;
+  const parts = str.trim().split('/');
+  if (parts.length === 3) {
+    const [d, m, y] = parts.map(Number);
+    return y * 10000 + m * 100 + d;
+  }
+  const n = parseInt(str.match(/\d+/)?.[0] || '0', 10);
+  return n * 10000 + 9999;
+};
+
+const IMP_ORDER = { protagonista: 0, primario: 1, secondario: 2, minore: 3 };
+
 const TRACK_COLORS = ['#e8a0a8','#7ab8d4','#8fbd7c','#d4956a','#b88fc4','#f0c060','#a0d0c0','#c4a0e4','#e4c07a','#a8d4b8'];
 function getTrackColor(index) { return TRACK_COLORS[index % TRACK_COLORS.length]; }
 
+const EL_IMP_ORDER = { alta: 0, media: 1, bassa: 2, trascurabile: 3 };
+
+function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats }) {
+  const [open,      setOpen]      = useState(false);
+  const [query,     setQuery]     = useState('');
+  const [collapsed, setCollapsed] = useState(new Set());
+
+  const toggleGroup = (key) => setCollapsed(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next;
+  });
+
+  const trackable = elements.filter(e => e.cat !== 'place' && e.cat !== 'event');
+  const filtered  = query ? trackable.filter(e => e.name.toLowerCase().includes(query.toLowerCase())) : null;
+
+  const groups = cats
+    .filter(cat => cat.id !== 'place' && cat.id !== 'event')
+    .map(cat => ({
+      id: cat.id,
+      name: cat.name,
+      icon: cat.icon || '●',
+      els: trackable
+        .filter(e => e.cat === cat.id)
+        .sort((a, b) => (EL_IMP_ORDER[a.importance] ?? 4) - (EL_IMP_ORDER[b.importance] ?? 4)),
+    }))
+    .filter(g => g.els.length > 0);
+
+  const catIds      = new Set(cats.map(c => c.id));
+  const uncategorized = trackable
+    .filter(e => !catIds.has(e.cat))
+    .sort((a, b) => (EL_IMP_ORDER[a.importance] ?? 4) - (EL_IMP_ORDER[b.importance] ?? 4));
+  if (uncategorized.length > 0) groups.push({ id: '__other', name: 'Altro', icon: '●', els: uncategorized });
+
+  const ElRow = ({ el }) => {
+    const isSelected    = trackEls.has(el.id);
+    const selectedIndex = [...trackEls].indexOf(el.id);
+    const color         = isSelected ? getTrackColor(selectedIndex) : null;
+    return (
+      <div onClick={() => setTrackEls(prev => { const next = new Set(prev); isSelected ? next.delete(el.id) : next.add(el.id); return next; })}
+        style={{ padding: '7px 12px 7px 28px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: isSelected ? (color + '1a') : '' }}
+        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface2)'; }}
+        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = ''; }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: isSelected ? color : 'var(--border)', flexShrink: 0 }} />
+        <span style={{ fontSize: 13, color: isSelected ? 'var(--text)' : 'var(--text-dim)', flex: 1 }}>{elIcon(el)} {el.name}</span>
+        {isSelected && <span style={{ fontSize: 11, color }}>✓</span>}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${open ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 180, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>👤</span>
+        <span style={{ fontSize: 12, color: trackEls.size ? 'var(--text)' : 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", flex: 1 }}>
+          {trackEls.size ? `${trackEls.size} element${trackEls.size !== 1 ? 'i' : 'o'} tracciati` : 'Traccia elementi…'}
+        </span>
+        {trackEls.size > 0
+          ? <button onClick={e => { e.stopPropagation(); setTrackEls(new Set()); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>
+          : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>▼</span>}
+      </div>
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 280, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
+            <input type="text" placeholder="Cerca elemento…" value={query} onChange={e => setQuery(e.target.value)} autoFocus
+              style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
+          </div>
+          <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+            {filtered ? (
+              filtered.length === 0
+                ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun risultato</div>
+                : filtered.map(el => <ElRow key={el.id} el={el} />)
+            ) : groups.length === 0
+              ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun elemento tracciabile</div>
+              : groups.map(g => (
+                <div key={g.id}>
+                  <div onClick={() => toggleGroup(g.id)}
+                    style={{ padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 1, userSelect: 'none' }}>
+                    <span style={{ fontSize: 9, color: 'var(--text-muted)', width: 10 }}>{collapsed.has(g.id) ? '▶' : '▼'}</span>
+                    <span style={{ fontSize: 13 }}>{g.icon}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, flex: 1 }}>{g.name}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{g.els.length}</span>
+                  </div>
+                  {!collapsed.has(g.id) && g.els.map(el => <ElRow key={el.id} el={el} />)}
+                </div>
+              ))
+            }
+          </div>
+          {trackEls.size > 0 && (
+            <div style={{ padding: '6px 12px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{trackEls.size} selezionat{trackEls.size !== 1 ? 'i' : 'o'}</span>
+              <button className="btn-g" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => { setTrackEls(new Set()); setOpen(false); }}>Rimuovi tutti</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MapView({ onOpenElement }) {
-  const { elements, elColor, elIcon, uid, wid } = useWorld();
+  const { elements, elColor, elIcon, uid, wid, allCats } = useWorld();
   const [mapImage,   setMapImage]   = useState('');
   const [pois,       setPois]       = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -72,8 +233,7 @@ export default function MapView({ onOpenElement }) {
   const [selected,   setSelected]   = useState(null);
   const [timeFilter, setTimeFilter] = useState('');
   const [trackEls,   setTrackEls]   = useState(new Set());
-  const [trackQ,     setTrackQ]     = useState('');
-  const [trackOpen,  setTrackOpen]  = useState(false);
+  const cats = allCats();
 
   // ── Zoom / Pan ──
   // Tutto avviene tramite refs per evitare re-render durante il movimento
@@ -117,7 +277,14 @@ export default function MapView({ onOpenElement }) {
   };
 
   const luoghi = elements.filter(e => e.cat === 'place');
-  const dateEvents = elements.filter(e => e.cat === 'event' && e.date).sort((a, b) => a.date.localeCompare(b.date));
+  const dateEvents = elements
+    .filter(e => e.cat === 'event' && e.date)
+    .sort((a, b) => {
+      const ia = IMP_ORDER[a.importance] ?? 4;
+      const ib = IMP_ORDER[b.importance] ?? 4;
+      if (ia !== ib) return ia - ib;
+      return parseDate(a.date) - parseDate(b.date);
+    });
 
   useEffect(() => {
     if (!uid || !wid) return;
@@ -306,11 +473,15 @@ export default function MapView({ onOpenElement }) {
 
   const getElementsAtPoiAtTime = (poi, date) => {
     if (!poi.elementId) return [];
+    const filterN = parseDate(date);
+    if (!filterN) return [];
     return elements.filter(el => {
       if (el.cat === 'place') return false;
       const changelog = (el.changelog || []).filter(c => c.date && c.placeId);
       if (!changelog.length) return false;
-      const relevant = changelog.filter(c => c.date <= date).sort((a, b) => b.date.localeCompare(a.date));
+      const relevant = changelog
+        .filter(c => parseDate(c.date) <= filterN)
+        .sort((a, b) => parseDate(b.date) - parseDate(a.date));
       if (!relevant.length) return false;
       return relevant[0].placeId === poi.elementId;
     });
@@ -328,9 +499,10 @@ export default function MapView({ onOpenElement }) {
     trackEls.forEach(elId => {
       const el = elements.find(e => e.id === elId);
       if (!el) return;
+      const filterN = timeFilter ? parseDate(timeFilter) : null;
       const entries = (el.changelog || [])
-        .filter(c => c.placeId && (!timeFilter || c.date <= timeFilter))
-        .sort((a, b) => a.date.localeCompare(b.date));
+        .filter(c => c.placeId && (!filterN || parseDate(c.date) <= filterN))
+        .sort((a, b) => parseDate(a.date) - parseDate(b.date));
       const color = getTrackColor(trackIndex++);
       const positions = entries.map(c => {
         const poi = pois.find(p => p.elementId === c.placeId);
@@ -353,47 +525,7 @@ export default function MapView({ onOpenElement }) {
               <DateFilterPicker timeFilter={timeFilter} setTimeFilter={setTimeFilter} dateEvents={dateEvents} />
 
               {/* Traccia elementi */}
-              <div style={{ position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${trackOpen ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 180, cursor: 'pointer' }} onClick={() => setTrackOpen(o => !o)}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>👤</span>
-                  <span style={{ fontSize: 12, color: trackEls.size ? 'var(--text)' : 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", flex: 1 }}>
-                    {trackEls.size ? `${trackEls.size} element${trackEls.size !== 1 ? 'i' : 'o'} tracciati` : 'Traccia elementi…'}
-                  </span>
-                  {trackEls.size > 0
-                    ? <button onClick={e => { e.stopPropagation(); setTrackEls(new Set()); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>
-                    : <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>▼</span>}
-                </div>
-                {trackOpen && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 260, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
-                    <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-                      <input type="text" placeholder="Cerca elemento…" value={trackQ} onChange={e => setTrackQ(e.target.value)} autoFocus style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
-                    </div>
-                    <div style={{ maxHeight: 240, overflowY: 'auto' }}>
-                      {elements.filter(e => e.cat !== 'place' && e.cat !== 'event').filter(e => !trackQ || e.name.toLowerCase().includes(trackQ.toLowerCase())).map((el, idx) => {
-                        const isSelected = trackEls.has(el.id);
-                        const selectedIndex = [...trackEls].indexOf(el.id);
-                        const color = isSelected ? getTrackColor(selectedIndex) : 'var(--border)';
-                        return (
-                          <div key={el.id} onClick={() => setTrackEls(prev => { const next = new Set(prev); isSelected ? next.delete(el.id) : next.add(el.id); return next; })}
-                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: isSelected ? color + '11' : '' }}
-                            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface2)'; }}
-                            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = ''; }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: isSelected ? color : 'var(--border)', flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, color: isSelected ? 'var(--text)' : 'var(--text-dim)', flex: 1 }}>{elIcon(el)} {el.name}</span>
-                            {isSelected && <span style={{ fontSize: 11, color }}>✓</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {trackEls.size > 0 && (
-                      <div style={{ padding: '6px 12px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{trackEls.size} selezionat{trackEls.size !== 1 ? 'i' : 'o'}</span>
-                        <button className="btn-g" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => { setTrackEls(new Set()); setTrackOpen(false); }}>Rimuovi tutti</button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <TrackPicker elements={elements} trackEls={trackEls} setTrackEls={setTrackEls} elColor={elColor} elIcon={elIcon} cats={cats} />
 
               <button className="btn-p" onClick={() => setPlacing(p => !p)}>
                 {placing ? '✕ Annulla' : '+ Aggiungi luogo'}

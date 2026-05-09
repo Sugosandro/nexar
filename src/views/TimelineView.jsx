@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useWorld } from '../hooks/useWorld';
 import ElementModal from '../components/ElementModal';
 
@@ -76,7 +76,7 @@ function EventCard({ ev, side, elements, arcs, cats, expanded, toggleExpand, onO
 }
 
 // ── Contenuto interno barra range — testo orizzontale, larghezza adattiva ──
-function RangeBarInner({ ev, h, color, isOpen, toggleExpand, onOpenElement, popupLeft }) {
+function RangeBarInner({ ev, h, color, isOpen, toggleExpand, onOpenElement, popupLeft, popupRight }) {
   return (
     <>
       <div onClick={() => toggleExpand(ev.id)}
@@ -95,7 +95,7 @@ function RangeBarInner({ ev, h, color, isOpen, toggleExpand, onOpenElement, popu
         )}
       </div>
       {isOpen && (
-        <div style={{ position: 'absolute', left: popupLeft ?? 'calc(100% + 8px)', top: 0, background: 'var(--surface)', border: `1px solid ${color}`, borderRadius: 8, padding: '12px 14px', zIndex: 30, minWidth: 220, maxWidth: 280, boxShadow: '0 8px 32px rgba(0,0,0,.7)' }}
+        <div style={{ position: 'absolute', left: popupRight ? 'auto' : (popupLeft ?? 'calc(100% + 8px)'), right: popupRight ?? 'auto', top: 0, background: 'var(--surface)', border: `1px solid ${color}`, borderRadius: 8, padding: '12px 14px', zIndex: 30, minWidth: 220, maxWidth: 280, boxShadow: '0 8px 32px rgba(0,0,0,.7)' }}
           onClick={e => e.stopPropagation()}>
           <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: 'var(--text)', marginBottom: 6 }}>{ev.name}</div>
           <div style={{ fontSize: 12, color, marginBottom: ev.desc ? 8 : 0 }}>{ev.date} → {ev.dateEnd}</div>
@@ -226,7 +226,7 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
           const imp   = ev.importance || 'minore';
           const color = IMP_COLOR[imp] || '#b88fc4';
           return (
-            <div key={ev.id} style={{ position: 'absolute', top: y, left: CARD_LEFT, right: 4 }}>
+            <div key={ev.id} style={{ position: 'absolute', top: y, left: CARD_LEFT, right: 4, zIndex: expanded.has(ev.id) ? 10 : 1 }}>
               <div style={{ position: 'absolute', left: -(CARD_LEFT - LINE_X) - 5, top: 14, width: 8, height: 8, borderRadius: '50%', background: color, border: '2px solid var(--surface)' }} />
               <EventCard ev={ev} side="right" elements={elements} arcs={arcs} cats={cats}
                 expanded={expanded} toggleExpand={toggleExpand} onOpenElement={onOpenElement} />
@@ -262,39 +262,45 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
         return (
           <div key={ev.id} style={{ position: 'absolute', top: yStart, left: '50%', transform: 'translateX(-50%)', width: w, zIndex: isOpen ? 10 : 3 }}>
             <RangeBarInner ev={ev} h={h} color={color} isOpen={isOpen}
-              toggleExpand={toggleExpand} onOpenElement={onOpenElement} />
+              toggleExpand={toggleExpand} onOpenElement={onOpenElement}
+              popupRight="calc(100% + 8px)" />
           </div>
         );
       })}
 
       {/* Punti sulla linea per eventi puntali */}
       {pointPositions.map(({ ev, y }) => {
-        const side     = getSide(ev);
-        const isLeft   = side === 'left';
-        const isCenter = side === 'center';
-        const imp      = ev.importance || 'minore';
-        const color    = IMP_COLOR[imp] || '#b88fc4';
-        const activeRange  = rangeLayout.find(r => y + 10 >= r.yStart && y <= r.yEnd + 10);
+        const side       = getSide(ev);
+        const isLeft     = side === 'left';
+        const isCenter   = side === 'center';
+        const imp        = ev.importance || 'minore';
+        const color      = IMP_COLOR[imp] || '#b88fc4';
+        // Scarta la barra se la card (y … y+SLOT_H) si sovrappone verticalmente
+        const activeRange  = rangeLayout.find(r => y + SLOT_H > r.yStart && y < r.yEnd);
         const hasRangeHere = !!activeRange;
-        const rw           = activeRange?.w ?? 100;
+        const rw           = activeRange?.w ?? 0;
+        const halfGap      = hasRangeHere ? rw / 2 + 20 : 20;
+        const isExpanded   = expanded.has(ev.id);
+        // Pallino nascosto solo se il suo y cade dentro la barra
+        const showDot = !rangeLayout.some(r => y + 14 >= r.yStart && y + 14 <= r.yEnd);
         return (
-          <div key={ev.id} style={{ position: 'absolute', top: y, left: 0, right: 0, zIndex: 2, display: 'grid', gridTemplateColumns: hasRangeHere ? `calc(50% - ${rw/2 + 16}px) ${rw + 32}px 1fr` : '1fr 40px 1fr' }}>
-            <div style={{ paddingRight: 12 }}>
-              {(isLeft || isCenter) && (
+          <Fragment key={ev.id}>
+            {showDot && (
+              <div style={{ position: 'absolute', top: y + 14, left: 'calc(50% - 5px)', width: 10, height: 10, borderRadius: '50%', background: color, border: '2px solid var(--surface)', boxShadow: `0 0 6px ${color}88`, zIndex: 4 }} />
+            )}
+            {(isLeft || isCenter) && (
+              <div style={{ position: 'absolute', top: y, left: 0, right: `calc(50% + ${halfGap}px)`, paddingRight: 12, zIndex: isExpanded ? 20 : 2 }}>
                 <EventCard ev={ev} side={isLeft ? 'left' : 'center'} elements={elements} arcs={arcs} cats={cats}
                   expanded={expanded} toggleExpand={toggleExpand} onOpenElement={onOpenElement} />
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 14 }}>
-              {!hasRangeHere && <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, border: '2px solid var(--surface)', boxShadow: `0 0 6px ${color}88` }} />}
-            </div>
-            <div style={{ paddingLeft: 12 }}>
-              {!isLeft && !isCenter && (
+              </div>
+            )}
+            {!isLeft && !isCenter && (
+              <div style={{ position: 'absolute', top: y, left: `calc(50% + ${halfGap}px)`, right: 0, paddingLeft: 12, zIndex: isExpanded ? 20 : 2 }}>
                 <EventCard ev={ev} side="right" elements={elements} arcs={arcs} cats={cats}
                   expanded={expanded} toggleExpand={toggleExpand} onOpenElement={onOpenElement} />
-              )}
-            </div>
-          </div>
+              </div>
+            )}
+          </Fragment>
         );
       })}
     </div>

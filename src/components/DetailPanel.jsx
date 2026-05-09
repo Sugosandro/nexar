@@ -382,7 +382,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
           ))}
         </div>
 
-        <div className="dp-body">
+        <div className="dp-body" style={activeTab === 'notes' ? { display: 'flex', flexDirection: 'column' } : undefined}>
           {activeTab === 'info' && (
             <>
               {el.image && <img className="dp-img" src={el.image} alt="" />}
@@ -499,7 +499,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
           )}
           {activeTab === 'notes' && (
             <>
-              <textarea className="notes-area" defaultValue={el.notes || ''} placeholder="Scrivi note libere…"
+              <textarea className="notes-area" style={{ flex: 1 }} defaultValue={el.notes || ''} placeholder="Scrivi note libere…"
                 onBlur={async e => { await updateEl(el.id, { notes: e.target.value }); showToast('✓ Note salvate'); }} />
               <div className="notes-hint">💾 Salvato quando esci dal campo</div>
             </>
@@ -570,7 +570,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             </div>
           </div>
         </div>
-        <div className="dp-body">
+        <div className="dp-body" style={{ display: 'flex', flexDirection: 'column' }}>
           {faz.desc && <div className="dp-sec"><div className="dp-lbl">Descrizione</div><div className="dp-txt">{faz.desc}</div></div>}
           <div className="dp-sec">
             <div className="dp-lbl">Membri</div>
@@ -599,9 +599,9 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
               })}
             </div>
           )}
-          <div className="dp-sec">
+          <div className="dp-sec" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div className="dp-lbl">Note</div>
-            <textarea className="notes-area" defaultValue={faz.notes || ''} placeholder="Note sulla fazione…"
+            <textarea className="notes-area" style={{ flex: 1 }} defaultValue={faz.notes || ''} placeholder="Note sulla fazione…"
               onBlur={async e => { await updateFazione(faz.id, { notes: e.target.value }); showToast('✓ Note salvate'); }} />
           </div>
         </div>
@@ -637,7 +637,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             </div>
           </div>
         </div>
-        <div className="dp-body">
+        <div className="dp-body" style={{ display: 'flex', flexDirection: 'column' }}>
           {mag.desc && <div className="dp-sec"><div className="dp-lbl">Descrizione</div><div className="dp-txt">{mag.desc}</div></div>}
           {(mag.rules || []).length > 0 && (
             <div className="dp-sec">
@@ -710,9 +710,9 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
               </div>
             );
           })()}
-          <div className="dp-sec">
+          <div className="dp-sec" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div className="dp-lbl">Note</div>
-            <textarea className="notes-area" defaultValue={mag.notes || ''} placeholder="Note sul sistema di magia…"
+            <textarea className="notes-area" style={{ flex: 1 }} defaultValue={mag.notes || ''} placeholder="Note sul sistema di magia…"
               onBlur={async e => { await updateMagia(mag.id, { notes: e.target.value }); showToast('✓ Note salvate'); }} />
           </div>
         </div>
@@ -749,7 +749,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             </div>
           </div>
         </div>
-        <div className="dp-body">
+        <div className="dp-body" style={{ display: 'flex', flexDirection: 'column' }}>
           {arc.desc && <div className="dp-sec"><div className="dp-lbl">Descrizione</div><div className="dp-txt">{arc.desc}</div></div>}
           {(arc.phases || []).length > 0 && (
             <div className="dp-sec">
@@ -776,9 +776,9 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
               {(!arc.members?.length) && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13 }}>Nessun elemento</span>}
             </div>
           </div>
-          <div className="dp-sec">
+          <div className="dp-sec" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div className="dp-lbl">Note</div>
-            <textarea className="notes-area" defaultValue={arc.notes || ''} placeholder="Note sull'arco narrativo…"
+            <textarea className="notes-area" style={{ flex: 1 }} defaultValue={arc.notes || ''} placeholder="Note sull'arco narrativo…"
               onBlur={async e => { await updateArc(arc.id, { notes: e.target.value }); showToast('✓ Note salvate'); }} />
           </div>
         </div>

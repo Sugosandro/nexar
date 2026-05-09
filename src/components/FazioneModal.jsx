@@ -25,7 +25,22 @@ export default function FazioneModal({ initialData = null, onSave, onClose }) {
 
   const handleSave = () => {
     if (!name.trim()) { alert('Il nome è obbligatorio'); return; }
-    onSave({ name: name.trim(), desc, motto, members, parentId: parentId || null, rels: initialData?.rels || [], notes: initialData?.notes || '' });
+    // Calcola tutti gli antenati della fazione selezionata
+    const ancestors = [];
+    let current = parentId;
+    while (current) {
+      const faz = fazioni.find(f => f.id === current);
+      if (!faz || ancestors.includes(faz.id)) break; // evita loop
+      ancestors.push(faz.id);
+      current = faz.parentId;
+    }
+    onSave({
+      name: name.trim(), desc, motto, members,
+      parentId: parentId || null,
+      rels: initialData?.rels || [],
+      notes: initialData?.notes || '',
+      _ancestors: ancestors, // lista fazioni antenate da aggiornare
+    });
   };
 
   return (

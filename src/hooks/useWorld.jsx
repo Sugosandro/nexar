@@ -117,9 +117,34 @@ export function WorldProvider({ uid, wid, children }) {
   const deleteArcFn = (aid)          => deleteArc(uid, wid, aid);
 
   // ── Azioni fazioni ──
-  const addFazFn    = (data)         => addFazione   (uid, wid, { members: [], rels: [], parentId: null, ...data });
-  const updateFazFn = (fid, changes) => updateFazione(uid, wid, fid, changes);
-  const deleteFazFn = (fid)          => deleteFazione(uid, wid, fid);
+  // Propaga i nuovi membri a tutte le fazioni antenate
+  const propagateToAncestors = async (ancestors, newMembers) => {
+    for (const ancId of (ancestors || [])) {
+      const anc = fazioni.find(f => f.id === ancId);
+      if (!anc) continue;
+      const merged = [...new Set([...(anc.members || []), ...newMembers])];
+      await updateFazione(uid, wid, ancId, { members: merged });
+    }
+  };
+
+  const addFazFn = async (data) => {
+    const { _ancestors, ...fazData } = data;
+    const id = await addFazione(uid, wid, { members: [], rels: [], parentId: null, ...fazData });
+    if (_ancestors?.length && fazData.members?.length) {
+      await propagateToAncestors(_ancestors, fazData.members);
+    }
+    return id;
+  };
+
+  const updateFazFn = async (fid, changes) => {
+    const { _ancestors, ...fazChanges } = changes;
+    await updateFazione(uid, wid, fid, fazChanges);
+    if (_ancestors?.length && fazChanges.members?.length) {
+      await propagateToAncestors(_ancestors, fazChanges.members);
+    }
+  };
+
+  const deleteFazFn = (fid) => deleteFazione(uid, wid, fid);
 
   // ── Azioni magie ──
   const addMagFn    = (data)         => addMagia   (uid, wid, { users: [], rules: [], ...data });

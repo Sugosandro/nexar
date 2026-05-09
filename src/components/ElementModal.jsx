@@ -162,6 +162,133 @@ const handleSave = () => {
           <label className="fl">Descrizione</label>
           <textarea className="ft" placeholder="Descrivi questo elemento…" value={desc} onChange={e => setDesc(e.target.value)} />
         </div>
+
+        <div className="fg" style={{ position: 'relative' }}>
+          <label className="fl">Tag — collega ad altri elementi</label>
+
+          {/* Chip selezionati + input ricerca */}
+          <div
+            onClick={() => { setTagOpen(true); tagInputRef.current?.focus(); }}
+            style={{ background: 'var(--surface2)', border: `1px solid ${tagOpen ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text', transition: 'border-color .15s' }}
+          >
+            {tags.map(t => {
+              const tid = tagId(t);
+              const to  = tagObj(t);
+              const el  = elements.find(e => e.id === tid);
+              if (!el) return null;
+              const catColor  = cats.find(c => c.id === el.cat)?.color || '#888';
+              const impColor  = TAG_IMP_COLOR[to.importance] || '#888';
+              const isEditing = editingTag === tid;
+              return (
+                <span key={tid} style={{ background: 'var(--surface3)', border: `1px solid ${catColor}55`, borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
+                  onClick={e => { e.stopPropagation(); setEditingTag(isEditing ? null : tid); }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, flexShrink: 0 }} />
+                  {el.name}
+                  {to.rel && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>· {to.rel}</span>}
+                  <span style={{ color: impColor, fontSize: 11 }}>{TAG_IMP_LABEL[to.importance]}</span>
+                  <span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }} onClick={e => { e.stopPropagation(); removeTag(tid); }}>×</span>
+                </span>
+              );
+            })}
+            <input
+              ref={tagInputRef}
+              type="text"
+              placeholder={tags.length ? '' : 'Cerca o sfoglia…'}
+              value={tagQuery}
+              onChange={e => { setTagQuery(e.target.value); setTagOpen(true); }}
+              onFocus={() => setTagOpen(true)}
+              onBlur={() => setTimeout(() => setTagOpen(false), 200)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { setTagOpen(false); setTagQuery(''); }
+                if (e.key === 'Backspace' && !tagQuery && tags.length) removeTag(tags[tags.length - 1]);
+              }}
+              autoComplete="off"
+              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, flex: 1, minWidth: 120 }}
+            />
+          </div>
+
+          {/* Dropdown raggruppato per categoria */}
+          {tagOpen && (() => {
+            const available = elements.filter(e =>
+              e.id !== initialData?.id &&
+              !tags.some(t => tagId(t) === e.id) &&
+              (tagQuery === '' || e.name.toLowerCase().includes(tagQuery.toLowerCase()))
+            );
+            const groups = cats
+              .map(c => ({ cat: c, items: available.filter(e => e.cat === c.id) }))
+              .filter(g => g.items.length > 0);
+
+            if (groups.length === 0) return (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 700, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                Nessun elemento trovato
+              </div>
+            );
+
+            return (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 700, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 28px rgba(0,0,0,.55)', maxHeight: 300, overflowY: 'auto' }}>
+                <div style={{ padding: '6px 12px 5px', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', letterSpacing: '.04em', textTransform: 'uppercase' }}>
+                  <span>{available.length} elementi disponibili</span>
+                  <span>backspace per rimuovere</span>
+                </div>
+                {groups.map(({ cat: c, items }) => (
+                  <div key={c.id}>
+                    <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: c.color, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, position: 'sticky', top: 0 }}>
+                      <span>{c.icon}</span>
+                      <span>{c.name}</span>
+                      <span style={{ marginLeft: 'auto', fontWeight: 400, opacity: .7 }}>{items.length}</span>
+                    </div>
+                    {items.map(el => (
+                      <div key={el.id} onMouseDown={() => addTag(el.id)}
+                        style={{ padding: '7px 12px 7px 22px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{el.name}</span>
+                        {el.sub && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>{el.sub}</span>}
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                          {el.importance === 'protagonista' ? '⭐⭐⭐' : el.importance === 'primario' ? '⭐⭐' : el.importance === 'secondario' ? '⭐' : '·'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          {/* Pannello modifica rel/importance del tag selezionato */}
+          {editingTag && (() => {
+            const t  = tags.find(x => tagId(x) === editingTag);
+            const to = t ? tagObj(t) : null;
+            const el = to ? elements.find(e => e.id === to.id) : null;
+            if (!to || !el) return null;
+            const catColor = cats.find(c => c.id === el.cat)?.color || '#888';
+            return (
+              <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--surface2)', border: `1px solid ${catColor}44`, borderRadius: 'var(--r)' }}>
+                <div style={{ fontSize: 11, color: catColor, marginBottom: 8, fontWeight: 600 }}>
+                  Relazione con {el.name}
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input type="text" placeholder="Tipo di relazione (es. Fratello, Nemico…)"
+                    value={to.rel}
+                    onChange={e => updateTagField(editingTag, 'rel', e.target.value)}
+                    style={{ flex: 1, minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {TAG_IMPORTANCE.map(imp => (
+                      <button key={imp} type="button" onClick={() => updateTagField(editingTag, 'importance', imp)}
+                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                          background: to.importance === imp ? TAG_IMP_COLOR[imp] + '33' : 'var(--surface)',
+                          border: `1px solid ${to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--border)'}`,
+                          color: to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--text-muted)' }}>
+                        {TAG_IMP_LABEL[imp]} {imp}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setEditingTag(null)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✓</button>
+                </div>
+              </div>
+            );
+          })()}
         
         {cat === 'event' && (
   <>
@@ -322,132 +449,6 @@ const handleSave = () => {
           <input type="file" id="fImgInput" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
         </div>
 
-        <div className="fg" style={{ position: 'relative' }}>
-          <label className="fl">Tag — collega ad altri elementi</label>
-
-          {/* Chip selezionati + input ricerca */}
-          <div
-            onClick={() => { setTagOpen(true); tagInputRef.current?.focus(); }}
-            style={{ background: 'var(--surface2)', border: `1px solid ${tagOpen ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text', transition: 'border-color .15s' }}
-          >
-            {tags.map(t => {
-              const tid = tagId(t);
-              const to  = tagObj(t);
-              const el  = elements.find(e => e.id === tid);
-              if (!el) return null;
-              const catColor  = cats.find(c => c.id === el.cat)?.color || '#888';
-              const impColor  = TAG_IMP_COLOR[to.importance] || '#888';
-              const isEditing = editingTag === tid;
-              return (
-                <span key={tid} style={{ background: 'var(--surface3)', border: `1px solid ${catColor}55`, borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}
-                  onClick={e => { e.stopPropagation(); setEditingTag(isEditing ? null : tid); }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, flexShrink: 0 }} />
-                  {el.name}
-                  {to.rel && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>· {to.rel}</span>}
-                  <span style={{ color: impColor, fontSize: 11 }}>{TAG_IMP_LABEL[to.importance]}</span>
-                  <span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }} onClick={e => { e.stopPropagation(); removeTag(tid); }}>×</span>
-                </span>
-              );
-            })}
-            <input
-              ref={tagInputRef}
-              type="text"
-              placeholder={tags.length ? '' : 'Cerca o sfoglia…'}
-              value={tagQuery}
-              onChange={e => { setTagQuery(e.target.value); setTagOpen(true); }}
-              onFocus={() => setTagOpen(true)}
-              onBlur={() => setTimeout(() => setTagOpen(false), 200)}
-              onKeyDown={e => {
-                if (e.key === 'Escape') { setTagOpen(false); setTagQuery(''); }
-                if (e.key === 'Backspace' && !tagQuery && tags.length) removeTag(tags[tags.length - 1]);
-              }}
-              autoComplete="off"
-              style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, flex: 1, minWidth: 120 }}
-            />
-          </div>
-
-          {/* Dropdown raggruppato per categoria */}
-          {tagOpen && (() => {
-            const available = elements.filter(e =>
-              e.id !== initialData?.id &&
-              !tags.some(t => tagId(t) === e.id) &&
-              (tagQuery === '' || e.name.toLowerCase().includes(tagQuery.toLowerCase()))
-            );
-            const groups = cats
-              .map(c => ({ cat: c, items: available.filter(e => e.cat === c.id) }))
-              .filter(g => g.items.length > 0);
-
-            if (groups.length === 0) return (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 700, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
-                Nessun elemento trovato
-              </div>
-            );
-
-            return (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 700, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 28px rgba(0,0,0,.55)', maxHeight: 300, overflowY: 'auto' }}>
-                <div style={{ padding: '6px 12px 5px', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', letterSpacing: '.04em', textTransform: 'uppercase' }}>
-                  <span>{available.length} elementi disponibili</span>
-                  <span>backspace per rimuovere</span>
-                </div>
-                {groups.map(({ cat: c, items }) => (
-                  <div key={c.id}>
-                    <div style={{ padding: '6px 12px 4px', fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: c.color, background: 'var(--surface2)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, position: 'sticky', top: 0 }}>
-                      <span>{c.icon}</span>
-                      <span>{c.name}</span>
-                      <span style={{ marginLeft: 'auto', fontWeight: 400, opacity: .7 }}>{items.length}</span>
-                    </div>
-                    {items.map(el => (
-                      <div key={el.id} onMouseDown={() => addTag(el.id)}
-                        style={{ padding: '7px 12px 7px 22px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid var(--border)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                        onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color, flexShrink: 0 }} />
-                        <span style={{ flex: 1 }}>{el.name}</span>
-                        {el.sub && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>{el.sub}</span>}
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                          {el.importance === 'protagonista' ? '⭐⭐⭐' : el.importance === 'primario' ? '⭐⭐' : el.importance === 'secondario' ? '⭐' : '·'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-          {/* Pannello modifica rel/importance del tag selezionato */}
-          {editingTag && (() => {
-            const t  = tags.find(x => tagId(x) === editingTag);
-            const to = t ? tagObj(t) : null;
-            const el = to ? elements.find(e => e.id === to.id) : null;
-            if (!to || !el) return null;
-            const catColor = cats.find(c => c.id === el.cat)?.color || '#888';
-            return (
-              <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--surface2)', border: `1px solid ${catColor}44`, borderRadius: 'var(--r)' }}>
-                <div style={{ fontSize: 11, color: catColor, marginBottom: 8, fontWeight: 600 }}>
-                  Relazione con {el.name}
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input type="text" placeholder="Tipo di relazione (es. Fratello, Nemico…)"
-                    value={to.rel}
-                    onChange={e => updateTagField(editingTag, 'rel', e.target.value)}
-                    style={{ flex: 1, minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {TAG_IMPORTANCE.map(imp => (
-                      <button key={imp} type="button" onClick={() => updateTagField(editingTag, 'importance', imp)}
-                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
-                          background: to.importance === imp ? TAG_IMP_COLOR[imp] + '33' : 'var(--surface)',
-                          border: `1px solid ${to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--border)'}`,
-                          color: to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--text-muted)' }}>
-                        {TAG_IMP_LABEL[imp]} {imp}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => setEditingTag(null)}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✓</button>
-                </div>
-              </div>
-            );
-          })()}
         </div>
 
         <div className="modal-actions">

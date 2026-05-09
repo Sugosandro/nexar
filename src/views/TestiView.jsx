@@ -148,7 +148,7 @@ export default function TestiView({ onAnalyze, showToast }) {
 
       {/* Form nuovo testo */}
       {showForm && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 20 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 'clamp(12px, 3vw, 20px)', marginBottom: 20 }}>
           <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', marginBottom: 14 }}>Nuovo testo</div>
 
           <div className="fg">
@@ -232,34 +232,34 @@ export default function TestiView({ onAnalyze, showToast }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {texts.map(text => (
             <div key={text.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
                 {/* Nome — cliccabile per rinominare */}
                 {renaming === text.id ? (
                   <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleRename(text.id); if (e.key === 'Escape') setRenaming(null); }}
                     onBlur={() => handleRename(text.id)}
-                    style={{ flex: 1, background: 'var(--surface2)', border: '1px solid var(--gold-dim)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Playfair Display', serif", fontSize: 16, padding: '4px 10px', outline: 'none' }} />
+                    style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--gold-dim)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Playfair Display', serif", fontSize: 16, padding: '4px 10px', outline: 'none' }} />
                 ) : (
-                  <div style={{ flex: 1 }}>
+                  <div>
                     <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, color: 'var(--text)', marginBottom: 3 }}>
                       {text.name}
                     </div>
-                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                       <span>{formatSize(text.charCount || 0)}</span>
                       <span>~{Math.round(tokenEstimate(text.charCount || 0) / 1000)}k token</span>
                       {text.chunkCount > 1 && <span>📦 {text.chunkCount} chunk</span>}
-                      {text.customSep && <span>Separatore: "{text.customSep}"</span>}
+                      {text.customSep && <span>Sep: "{text.customSep}"</span>}
                       <span>{formatDate(text.createdAt)}</span>
                     </div>
                   </div>
                 )}
 
                 {/* Azioni */}
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <button className="btn-g" style={{ fontSize: 12 }}
                     onClick={() => { setRenaming(text.id); setRenameVal(text.name); }}>
-                    ✏
+                    ✏ Rinomina
                   </button>
                   <button className="btn-g" style={{ fontSize: 12 }}
                     onClick={() => handleRead(text)}
@@ -299,9 +299,9 @@ export default function TestiView({ onAnalyze, showToast }) {
 
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-            {/* Indice capitoli */}
+            {/* Indice capitoli — su mobile mostra toggle invece di colonna fissa */}
             {readingText.chapters.length > 1 && (
-              <div style={{ width: 220, flexShrink: 0, borderRight: '1px solid var(--border)', overflowY: 'auto', padding: '14px 0' }}>
+              <div style={{ width: 220, flexShrink: 0, borderRight: '1px solid var(--border)', overflowY: 'auto', padding: '14px 0', display: 'var(--index-display, flex)', flexDirection: 'column' }}>
                 <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', padding: '0 14px 10px' }}>
                   Indice — {readingText.chapters.length} sezioni
                 </div>

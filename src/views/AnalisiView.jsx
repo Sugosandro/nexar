@@ -22,6 +22,9 @@ const TIPO_META = {
   nuovo_potere:       { label: 'Nuovo potere',        color: '#c89fd4', bg: '#2e1e3c', icon: '⚡' },
   modifica_desc:      { label: 'Modifica descrizione',color: '#a0d0c0', bg: '#1a3830', icon: '✏' },
   modifica_tag:       { label: 'Modifica tag',        color: '#f0c060', bg: '#3a2a08', icon: '🏷' },
+  modifica_fazione:   { label: 'Modifica fazione',    color: '#f5bec5', bg: '#3c1820', icon: '⚔' },
+  modifica_magia:     { label: 'Modifica magia',      color: '#a0d0c0', bg: '#1a3830', icon: '✨' },
+  modifica_arco:      { label: 'Modifica arco',       color: '#d4a84c', bg: '#3a2a08', icon: '📖' },
 };
 
 // ── Divide testo in capitoli ───────────────────────────────────────────────
@@ -154,7 +157,7 @@ Analizza questo capitolo e identifica:
 Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta deve avere questa struttura:
 [
   {
-    "tipo": "incongruenza" | "nuovo_elemento" | "nuova_connessione" | "approfondimento" | "nuovo_potere" | "modifica_desc" | "modifica_tag",
+    "tipo": "incongruenza" | "nuovo_elemento" | "nuova_connessione" | "approfondimento" | "nuovo_potere" | "modifica_desc" | "modifica_tag" | "modifica_fazione" | "modifica_magia" | "modifica_arco",
     "titolo": "titolo breve della proposta",
     "descrizione": "spiegazione dettagliata di cosa hai trovato e perché è rilevante",
     "capitolo": "${chapterTitle}",
@@ -176,6 +179,18 @@ Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta
       // Per modifica_desc:
       "elemento_coinvolto": "nome elemento da aggiornare",
       "nuova_desc": "descrizione suggerita basata sul testo",
+      // Per modifica_fazione:
+      "nome_fazione": "nome fazione da aggiornare",
+      "campo": "desc" | "notes" | "motto",
+      "nuovo_valore": "nuovo contenuto suggerito",
+      // Per modifica_magia:
+      "nome_magia": "nome sistema di magia da aggiornare",
+      "campo": "desc" | "notes" | "nuova_regola",
+      "nuovo_valore": "nuovo contenuto suggerito",
+      // Per modifica_arco:
+      "nome_arco": "nome arco da aggiornare",
+      "campo": "desc" | "notes" | "nuova_fase",
+      "nuovo_valore": "nuovo contenuto suggerito",
       // Per incongruenza/approfondimento:
       "elemento_coinvolto": "nome elemento coinvolto se applicabile",
       "testo_originale": "citazione breve dal testo (max 80 chars)"
@@ -312,6 +327,24 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
                 🏷 Collega tag
               </button>
             )}
+            {proposal.tipo === 'modifica_fazione' && (
+              <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => onAccept(proposal)}>
+                ⚔ Aggiorna fazione
+              </button>
+            )}
+            {proposal.tipo === 'modifica_magia' && (
+              <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => onAccept(proposal)}>
+                ✨ Aggiorna magia
+              </button>
+            )}
+            {proposal.tipo === 'modifica_arco' && (
+              <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => onAccept(proposal)}>
+                📖 Aggiorna arco
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -321,7 +354,7 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
 
 // ── COMPONENTE PRINCIPALE ──────────────────────────────────────────────────
 export default function AnalisiView({ onOpenElement, showToast, preloadText, onPreloadConsumed }) {
-  const { elements, arcs, fazioni, magie, allCats, uid, wid, addEl, updateEl } = useWorld();
+  const { elements, arcs, fazioni, magie, allCats, uid, wid, addEl, updateEl, updateArc, updateFazione, updateMagia } = useWorld();
 
   // Testo (solo in memoria)
   const [text,          setText]          = useState('');
@@ -551,6 +584,51 @@ ${proposal.descrizione}`,
         const notePrev = elC.notes ? elC.notes + '\n\n' + fields.nota : fields.nota;
         await updateEl(elC.id, { notes: notePrev });
         showToast(`✓ Nota aggiunta a ${elC.name}`);
+      }
+
+      // ── Modifica fazione ──
+      if (tipo === 'modifica_fazione' && editForm.faz) {
+        const faz = editForm.faz;
+        const campo = fields.campo;
+        if (campo === 'nuova_regola') {
+          // non applicabile alle fazioni
+        } else if (campo === 'notes') {
+          const prev = faz.notes ? faz.notes + '\n\n' + fields.nuovo_valore : fields.nuovo_valore;
+          await updateFazione(faz.id, { notes: prev });
+        } else {
+          await updateFazione(faz.id, { [campo]: fields.nuovo_valore });
+        }
+        showToast(`✓ Fazione ${faz.name} aggiornata`);
+      }
+
+      // ── Modifica magia ──
+      if (tipo === 'modifica_magia' && editForm.mag) {
+        const mag = editForm.mag;
+        const campo = fields.campo;
+        if (campo === 'nuova_regola') {
+          await updateMagia(mag.id, { rules: [...(mag.rules || []), fields.nuovo_valore] });
+        } else if (campo === 'notes') {
+          const prev = mag.notes ? mag.notes + '\n\n' + fields.nuovo_valore : fields.nuovo_valore;
+          await updateMagia(mag.id, { notes: prev });
+        } else {
+          await updateMagia(mag.id, { [campo]: fields.nuovo_valore });
+        }
+        showToast(`✓ Sistema ${mag.name} aggiornato`);
+      }
+
+      // ── Modifica arco ──
+      if (tipo === 'modifica_arco' && editForm.arc) {
+        const arc = editForm.arc;
+        const campo = fields.campo;
+        if (campo === 'nuova_fase') {
+          await updateArc(arc.id, { phases: [...(arc.phases || []), fields.nuovo_valore] });
+        } else if (campo === 'notes') {
+          const prev = arc.notes ? arc.notes + '\n\n' + fields.nuovo_valore : fields.nuovo_valore;
+          await updateArc(arc.id, { notes: prev });
+        } else {
+          await updateArc(arc.id, { [campo]: fields.nuovo_valore });
+        }
+        showToast(`✓ Arco ${arc.name} aggiornato`);
       }
 
       await deleteProposal(uid, wid, proposal.id);
@@ -1037,6 +1115,58 @@ ${targetEl?.notes || ''}`,
                     ))}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ── Form: modifica fazione/magia/arco ── */}
+            {(editForm.proposal.tipo === 'modifica_fazione' || editForm.proposal.tipo === 'modifica_magia' || editForm.proposal.tipo === 'modifica_arco') && (
+              <div>
+                {(() => {
+                  const tipo = editForm.proposal.tipo;
+                  const target = editForm.faz || editForm.mag || editForm.arc;
+                  const tipoLabel = tipo === 'modifica_fazione' ? 'Fazione' : tipo === 'modifica_magia' ? 'Sistema di magia' : 'Arco narrativo';
+                  const campoOptions = tipo === 'modifica_magia'
+                    ? [{ v: 'desc', l: 'Descrizione' }, { v: 'notes', l: 'Note' }, { v: 'nuova_regola', l: 'Nuova regola' }]
+                    : tipo === 'modifica_arco'
+                    ? [{ v: 'desc', l: 'Descrizione' }, { v: 'notes', l: 'Note' }, { v: 'nuova_fase', l: 'Nuova fase' }]
+                    : [{ v: 'desc', l: 'Descrizione' }, { v: 'notes', l: 'Note' }, { v: 'motto', l: 'Motto' }];
+                  return (
+                    <>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
+                        {tipoLabel}: <strong style={{ color: 'var(--text)' }}>{target?.name}</strong>
+                      </div>
+                      <div className="fg">
+                        <label className="fl">Campo da modificare</label>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {campoOptions.map(o => (
+                            <button key={o.v} type="button" onClick={() => setField('campo', o.v)}
+                              style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                                background: editForm.fields.campo === o.v ? 'var(--gold-glow)' : 'var(--surface2)',
+                                border: `1px solid ${editForm.fields.campo === o.v ? 'var(--gold-dim)' : 'var(--border)'}`,
+                                color: editForm.fields.campo === o.v ? 'var(--gold)' : 'var(--text-muted)' }}>
+                              {o.l}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {target && editForm.fields.campo && target[editForm.fields.campo] && editForm.fields.campo !== 'nuova_regola' && editForm.fields.campo !== 'nuova_fase' && (
+                        <div style={{ marginBottom: 10, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 7, fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.5, textDecoration: 'line-through', opacity: .6 }}>
+                          {String(target[editForm.fields.campo]).slice(0, 200)}
+                        </div>
+                      )}
+                      <div className="fg">
+                        <label className="fl">
+                          {editForm.fields.campo === 'nuova_regola' ? 'Nuova regola da aggiungere' :
+                           editForm.fields.campo === 'nuova_fase'   ? 'Nuova fase da aggiungere' :
+                           'Nuovo contenuto'}
+                        </label>
+                        <textarea className="ft" value={editForm.fields.nuovo_valore}
+                          onChange={e => setField('nuovo_valore', e.target.value)}
+                          style={{ minHeight: 80 }} autoFocus />
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 

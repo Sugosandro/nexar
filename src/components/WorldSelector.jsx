@@ -34,7 +34,7 @@ export default function WorldSelector({ user, onSelectWorld }) {
   return (
     <div className="world-selector-page">
       <header className="ws-header">
-        <div className="login-logo">Story<span>World</span></div>
+        <div className="login-logo">Nexar</div>
         <div className="ws-user">
           <img src={user.photoURL} alt={user.displayName} className="ws-avatar" />
           <span>{user.displayName}</span>

@@ -289,7 +289,8 @@ const handleSave = () => {
               </div>
             );
           })()}
-        
+        </div>
+
         {cat === 'event' && (
   <>
     <div className="fg">
@@ -447,8 +448,6 @@ const handleSave = () => {
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>{images.length ? '+ Aggiungi altra immagine' : 'Clicca per caricare immagini'}</p>
           </div>
           <input type="file" id="fImgInput" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
-        </div>
-
         </div>
 
         <div className="modal-actions">

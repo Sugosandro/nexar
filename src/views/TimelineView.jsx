@@ -13,8 +13,8 @@ const parseDate = (str) => {
   return nums[0] || 0;
 };
 
-const IMP_STARS = { protagonista: '⭐⭐⭐', primario: '⭐⭐', secondario: '⭐', minore: '·' };
-const IMP_COLOR = { protagonista: '#f0c060', primario: '#b88fc4', secondario: '#7ab8d4', minore: '#888' };
+const IMP_STARS = { principale: '⭐⭐⭐', primario: '⭐⭐', secondario: '⭐', minore: '·' };
+const IMP_COLOR = { principale: '#f0c060', primario: '#b88fc4', secondario: '#7ab8d4', minore: '#888' };
 const RANGE_COLOR = '#d4956a';
 
 // ── Card evento puntale ───────────────────────────────────────────────────
@@ -384,7 +384,7 @@ export default function TimelineView({ onOpenElement, showToast }) {
           </select>
           <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }} value={impFilter} onChange={e => setImpFilter(e.target.value)}>
             <option value="">Qualsiasi importanza</option>
-            <option value="protagonista">⭐⭐⭐ Protagonista</option>
+            <option value="principale">⭐⭐⭐ Principale</option>
             <option value="primario">⭐⭐ Primario</option>
             <option value="secondario">⭐ Secondario</option>
             <option value="minore">· Minore</option>

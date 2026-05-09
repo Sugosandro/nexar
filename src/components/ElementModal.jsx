@@ -137,7 +137,7 @@ const handleSave = () => {
   <label className="fl">Importanza</label>
   <div style={{ display: 'flex', gap: 8 }}>
     {[
-      { value: 'protagonista', label: '⭐⭐⭐ Protagonista' },
+      { value: 'principale', label: '⭐⭐⭐ Principale' },
       { value: 'primario',     label: '⭐⭐ Primario' },
       { value: 'secondario',   label: '⭐ Secondario' },
       { value: 'minore',       label: '· Minore' },
@@ -246,7 +246,7 @@ const handleSave = () => {
                         <span style={{ flex: 1 }}>{el.name}</span>
                         {el.sub && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>{el.sub}</span>}
                         <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                          {el.importance === 'protagonista' ? '⭐⭐⭐' : el.importance === 'primario' ? '⭐⭐' : el.importance === 'secondario' ? '⭐' : '·'}
+                          {el.importance === 'principale' ? '⭐⭐⭐' : el.importance === 'primario' ? '⭐⭐' : el.importance === 'secondario' ? '⭐' : '·'}
                         </span>
                       </div>
                     ))}

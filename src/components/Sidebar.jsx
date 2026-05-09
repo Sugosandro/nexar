@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { useWorld } from '../hooks/useWorld';
 
-const IMP_ORDER  = { protagonista: 0, primario: 1, secondario: 2, minore: 3 };
-const IMP_LABEL  = { protagonista: '⭐⭐⭐', primario: '⭐⭐', secondario: '⭐', minore: '·' };
-const IMP_COLOR  = { protagonista: '#f0c060', primario: '#b88fc4', secondario: '#7ab8d4', minore: '#555' };
+const IMP_ORDER  = { principale: 0, primario: 1, secondario: 2, minore: 3 };
+const IMP_LABEL  = { principale: '⭐⭐⭐', primario: '⭐⭐', secondario: '⭐', minore: '·' };
+const IMP_COLOR  = { principale: '#f0c060', primario: '#b88fc4', secondario: '#7ab8d4', minore: '#555' };
 
 export default function Sidebar({ onSelectElement, activeElId }) {
   const { elements, allCats, elColor } = useWorld();

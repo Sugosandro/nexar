@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useWorld } from '../hooks/useWorld';
 import { getMap, saveMap } from '../firebase/db';
 
-const IMP_KEYS_DATE  = ['protagonista', 'primario', 'secondario', 'minore'];
-const IMP_LABEL_DATE = { protagonista: 'Protagonisti', primario: 'Primari', secondario: 'Secondari', minore: 'Minori' };
+const IMP_KEYS_DATE  = ['principale', 'primario', 'secondario', 'minore'];
+const IMP_LABEL_DATE = { principale: 'Protagonisti', primario: 'Primari', secondario: 'Secondari', minore: 'Minori' };
 
 function EventDateRow({ ev, selected, onSelect }) {
   return (
@@ -117,7 +117,7 @@ const parseDate = (str) => {
   return n * 10000 + 9999;
 };
 
-const IMP_ORDER = { protagonista: 0, primario: 1, secondario: 2, minore: 3 };
+const IMP_ORDER = { principale: 0, primario: 1, secondario: 2, minore: 3 };
 
 const TRACK_COLORS = ['#e8a0a8','#7ab8d4','#8fbd7c','#d4956a','#b88fc4','#f0c060','#a0d0c0','#c4a0e4','#e4c07a','#a8d4b8'];
 function getTrackColor(index) { return TRACK_COLORS[index % TRACK_COLORS.length]; }

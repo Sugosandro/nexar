@@ -168,7 +168,7 @@ Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta
       "cat": "char|place|object|event",
       "name": "nome elemento",
       "desc": "descrizione suggerita",
-      "importance": "protagonista|primario|secondario|minore",
+      "importance": "principale|primario|secondario|minore",
       // Per nuova_connessione / modifica_tag:
       "elemento_a": "nome elemento esistente",
       "elemento_b": "nome elemento esistente",

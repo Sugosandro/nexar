@@ -3,9 +3,9 @@ import { useWorld } from '../hooks/useWorld';
 import ElementCard from '../components/ElementCard';
 import ElementModal from '../components/ElementModal';
 
-const IMPORTANCE_ORDER = { protagonista: 0, primario: 1, secondario: 2, minore: 3, undefined: 4 };
+const IMPORTANCE_ORDER = { principale: 0, primario: 1, secondario: 2, minore: 3, undefined: 4 };
 const IMPORTANCE_LABELS = {
-  protagonista: '⭐⭐⭐ Protagonista',
+  principale: '⭐⭐⭐ principale',
   primario:     '⭐⭐ Primario',
   secondario:   '⭐ Secondario',
   minore:       '· Minore',
@@ -151,7 +151,7 @@ export default function WorldView({ onOpenElement, showToast }) {
           <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }}
             value={impFilter} onChange={e => setImpFilter(e.target.value)}>
             <option value="">Qualsiasi importanza</option>
-            <option value="protagonista">⭐⭐⭐ Protagonista</option>
+            <option value="principale">⭐⭐⭐ principale</option>
             <option value="primario">⭐⭐ Primario</option>
             <option value="secondario">⭐ Secondario</option>
             <option value="minore">· Minore</option>
@@ -234,7 +234,7 @@ export default function WorldView({ onOpenElement, showToast }) {
             const cat = cats.find(c => c.id === el.cat);
             const color = cat?.color || '#888';
             const imp = el.importance || 'minore';
-            const impStars = { protagonista: '⭐⭐⭐', primario: '⭐⭐', secondario: '⭐', minore: '·' };
+            const impStars = { principale: '⭐⭐⭐', primario: '⭐⭐', secondario: '⭐', minore: '·' };
             const STATUS_COLORS = { draft: 'var(--text-muted)', wip: 'var(--char)', done: 'var(--place)' };
 
             return (

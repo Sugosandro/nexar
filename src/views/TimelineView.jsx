@@ -387,7 +387,7 @@ export default function TimelineView({ onOpenElement, showToast }) {
             <option value="principale">⭐⭐⭐ Principale</option>
             <option value="primario">⭐⭐ Primario</option>
             <option value="secondario">⭐ Secondario</option>
-            <option value="minore">· Minore</option>
+            <option value="minore">· Minore</option> 
           </select>
           <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
             <option value="">Tutti i lati</option>

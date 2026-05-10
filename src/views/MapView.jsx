@@ -122,7 +122,7 @@ const IMP_ORDER = { principale: 0, primario: 1, secondario: 2, minore: 3 };
 const TRACK_COLORS = ['#e8a0a8','#7ab8d4','#8fbd7c','#d4956a','#b88fc4','#f0c060','#a0d0c0','#c4a0e4','#e4c07a','#a8d4b8'];
 function getTrackColor(index) { return TRACK_COLORS[index % TRACK_COLORS.length]; }
 
-const EL_IMP_ORDER = { alta: 0, media: 1, bassa: 2, trascurabile: 3 };
+const EL_IMP_ORDER = { Alta: 0, Media: 1, Bassa: 2, Trascurabile: 3 };
 
 function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats }) {
   const [open,      setOpen]      = useState(false);

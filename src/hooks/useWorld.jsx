@@ -19,19 +19,19 @@ export const BUILTIN_CATS = [
 
 // ── Helpers formato tag ──────────────────────────────────────────────────
 // I tag possono essere stringhe (vecchio formato) o oggetti { id, rel, importance }
-export const TAG_IMPORTANCE = ['alta', 'media', 'bassa', 'trascurabile'];
-export const TAG_IMP_LABEL  = { alta: '❤❤❤', media: '❤❤', bassa: '❤', trascurabile: '·' };
-export const TAG_IMP_COLOR  = { alta: '#e07070', media: '#d4a84c', bassa: '#7ab8d4', trascurabile: '#555' };
+export const TAG_IMPORTANCE = ['Alta', 'Media', 'Bassa', 'Trascurabile'];
+export const TAG_IMP_LABEL  = { Alta: '❤❤❤', Media: '❤❤', Bassa: '❤', Trascurabile: '·' };
+export const TAG_IMP_COLOR  = { Alta: '#e07070', Media: '#d4a84c', Bassa: '#7ab8d4', Trascurabile: '#555' };
 
 // Estrai l'ID da un tag (stringa o oggetto)
 export const tagId  = (t) => (typeof t === 'string' ? t : t?.id);
 // Converti tag in oggetto normalizzato
 export const tagObj = (t) => typeof t === 'string'
-  ? { id: t, rel: '', importance: 'media' }
-  : { id: t.id, rel: t.rel || '', importance: t.importance || 'media' };
+  ? { id: t, rel: '', importance: 'Media' }
+  : { id: t.id, rel: t.rel || '', importance: t.importance || 'Media' };
 // Ordina tag per importanza
 export const sortTags = (tags) => {
-  const order = { alta: 0, media: 1, bassa: 2, trascurabile: 3 };
+  const order = { Alta: 0, Media: 1, Bassa: 2, Trascurabile: 3 };
   return [...(tags || [])].sort((a, b) => {
     const ia = order[tagObj(a).importance] ?? 1;
     const ib = order[tagObj(b).importance] ?? 1;

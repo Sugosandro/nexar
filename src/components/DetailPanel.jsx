@@ -89,7 +89,7 @@ function PowersTab({ el, updateEl, magie, elements, showToast }) {
   const [newName,    setNewName]    = useState('');
   const [newDesc,    setNewDesc]    = useState('');
   const [newMagia,   setNewMagia]   = useState('');
-  const [newInt,     setNewInt]     = useState('media');
+  const [newInt,     setNewInt]     = useState('Media');
   const [powerOpen,  setPowerOpen]  = useState(false);
   const [powerQuery, setPowerQuery] = useState('');
   const powerInputRef = { current: null };
@@ -119,7 +119,7 @@ function PowersTab({ el, updateEl, magie, elements, showToast }) {
     const newPower = { name: newName.trim(), desc: newDesc.trim(), magiaId: newMagia || null, intensita: newInt };
     const updated = [...(el.powers || []), newPower];
     await updateEl(el.id, { powers: updated });
-    setNewName(''); setNewDesc(''); setNewMagia(''); setNewInt('media');
+    setNewName(''); setNewDesc(''); setNewMagia(''); setNewInt('Media');
     showToast('✓ Potere aggiunto');
   };
 
@@ -177,7 +177,7 @@ function PowersTab({ el, updateEl, magie, elements, showToast }) {
                 Poteri esistenti nel mondo
               </div>
               {powerSuggestions.map((p, i) => (
-                <div key={i} onMouseDown={() => { setNewName(p.name); setNewDesc(p.desc || ''); setNewInt(p.intensita || 'media'); setNewMagia(p.magiaId || ''); setPowerOpen(false); setPowerQuery(''); }}
+                <div key={i} onMouseDown={() => { setNewName(p.name); setNewDesc(p.desc || ''); setNewInt(p.intensita || 'Media'); setNewMagia(p.magiaId || ''); setPowerOpen(false); setPowerQuery(''); }}
                   style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                   onMouseLeave={e => e.currentTarget.style.background = ''}>
@@ -234,7 +234,7 @@ function EquipTab({ el, updateEl, elements, showToast }) {
 
   const handleAdd = async (objId) => {
     const updated = [...(el.equip || []), objId];
-    await updateEl(el.id, { equip: updated, tags: [...(el.tags || []).filter(t => tagId(t) !== objId), { id: objId, rel: 'Equipaggiamento', importance: 'bassa' }] });
+    await updateEl(el.id, { equip: updated, tags: [...(el.tags || []).filter(t => tagId(t) !== objId), { id: objId, rel: 'Equipaggiamento', importance: 'Bassa' }] });
     // Tag bidirezionale sull'oggetto
     const obj = oggetti.find(o => o.id === objId);
     if (obj && !(obj.tags || []).includes(el.id)) {
@@ -512,9 +512,9 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
   await updateEl(el.id, data);
   // Tag bidirezionali per i nuovi tag aggiunti
   if (newTags.length && uid && wid) {
-    const { addBidirectionalTag } = await import('../firebase/db');
+    const { addBidirectionAltag } = await import('../firebase/db');
     for (const tid of newTags) {
-      await addBidirectionalTag(uid, wid, el.id, tid);
+      await addBidirectionAltag(uid, wid, el.id, tid);
     }
   }
               if (birthDate) {

@@ -177,7 +177,7 @@ Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta
       "elemento_coinvolto": "nome personaggio",
       "power_name": "nome del potere",
       "power_desc": "descrizione del potere",
-      "power_intensita": "bassa|media|alta|assoluta",
+      "power_intensita": "Bassa|Media|Alta|Assoluta",
       // Per modifica_desc:
       "elemento_coinvolto": "nome elemento da aggiornare",
       "nuova_desc": "descrizione suggerita basata sul testo",
@@ -536,7 +536,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         fields: {
           power_name:      proposal.dati?.power_name || proposal.titolo || '',
           power_desc:      proposal.dati?.power_desc || proposal.descrizione || '',
-          power_intensita: proposal.dati?.power_intensita || 'media',
+          power_intensita: proposal.dati?.power_intensita || 'Media',
           power_magiaId:   '',
         }
       });
@@ -554,7 +554,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         proposal, elA, elB,
         fields: {
           rel:        proposal.dati?.relazione || '',
-          importance: 'media',
+          importance: 'Media',
         }
       });
     } else if (tipo === 'incongruenza' || tipo === 'approfondimento') {
@@ -595,7 +595,7 @@ ${proposal.descrizione}`,
         showToast(`✓ Descrizione di ${elC.name} aggiornata`);
 
       } else if ((tipo === 'nuova_connessione' || tipo === 'modifica_tag') && elA && elB) {
-        const newTag = { id: elB.id, rel: fields.rel || '', importance: fields.importance || 'media' };
+        const newTag = { id: elB.id, rel: fields.rel || '', importance: fields.importance || 'Media' };
         const tagsA  = [...(elA.tags || []).filter(t => (typeof t === 'string' ? t : t?.id) !== elB.id), newTag];
         await updateEl(elA.id, { tags: tagsA });
         showToast(`✓ Collegamento aggiunto tra ${elA.name} e ${elB.name}`);
@@ -715,13 +715,13 @@ ${proposal.descrizione}`,
         notes:      `POTERE SUGGERITO:
 Nome: ${proposal.dati?.power_name || ''}
 Descrizione: ${proposal.dati?.power_desc || ''}
-Intensità: ${proposal.dati?.power_intensita || 'media'}
+Intensità: ${proposal.dati?.power_intensita || 'Media'}
 
 ${targetEl?.notes || ''}`,
         _proposedPower: {
           name: proposal.dati?.power_name || proposal.titolo,
           desc: proposal.dati?.power_desc || proposal.descrizione,
-          intensita: proposal.dati?.power_intensita || 'media',
+          intensita: proposal.dati?.power_intensita || 'Media',
         },
       };
     }
@@ -1066,7 +1066,7 @@ ${targetEl?.notes || ''}`,
                 <div className="fg">
                   <label className="fl">Intensità</label>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {['bassa','media','alta','assoluta'].map(i => (
+                    {['Bassa','Media','Alta','Assoluta'].map(i => (
                       <button key={i} type="button" onClick={() => setField('power_intensita', i)}
                         style={{ flex: 1, padding: '6px 4px', fontSize: 12, borderRadius: 'var(--r)', cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
                           background: editForm.fields.power_intensita === i ? 'var(--surface3)' : 'var(--surface2)',

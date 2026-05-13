@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   subscribeElements, subscribeArcs, subscribeFazioni,
   subscribeMagie, subscribeCats,
@@ -42,6 +43,7 @@ export const sortTags = (tags) => {
 const WorldContext = createContext(null);
 
 export function WorldProvider({ uid, wid, children }) {
+  const { t } = useTranslation();
   const [elements, setElements] = useState([]);
   const [arcs,     setArcs]     = useState([]);
   const [fazioni,  setFazioni]  = useState([]);
@@ -64,7 +66,9 @@ export function WorldProvider({ uid, wid, children }) {
   const allCats = () => {
     return BUILTIN_CATS.map(bc => {
       const override = cats.find(c => c.id === bc.id);
-      return override ? { ...bc, subs: override.subs || [] } : bc;
+      return override
+        ? { ...bc, name: t('cat.builtin_' + bc.id), subs: override.subs || [] }
+        : { ...bc, name: t('cat.builtin_' + bc.id) };
     }).concat(
       // Escludi documenti malformati: devono avere name E non corrispondere a una built-in
       cats.filter(c => c.name && !BUILTIN_CATS.find(bc => bc.id === c.id))

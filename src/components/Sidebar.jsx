@@ -1,5 +1,5 @@
-// src/components/Sidebar.jsx
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 
 const IMP_ORDER  = { principale: 0, primario: 1, secondario: 2, minore: 3 };
@@ -7,6 +7,7 @@ const IMP_LABEL  = { principale: '⭐⭐⭐', primario: '⭐⭐', secondario: '�
 const IMP_COLOR  = { principale: '#f0c060', primario: '#b88fc4', secondario: '#7ab8d4', minore: '#555' };
 
 export default function Sidebar({ onSelectElement, activeElId }) {
+  const { t } = useTranslation();
   const { elements, allCats, elColor } = useWorld();
   const [search,    setSearch]    = useState('');
   const [collapsed, setCollapsed] = useState({}); // key: catId | catId-sub | catId-sub-imp
@@ -89,7 +90,7 @@ export default function Sidebar({ onSelectElement, activeElId }) {
             onMouseLeave={e => e.currentTarget.style.background = ''}>
             <span style={{ fontSize: 9, color: IMP_COLOR[imp] }}>{IMP_LABEL[imp]}</span>
             <span style={{ fontSize: 10, color: 'var(--text-muted)', flex: 1, letterSpacing: '.04em' }}>
-              {imp.charAt(0).toUpperCase() + imp.slice(1)}
+              {t('importance.' + imp)}
             </span>
             <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{impItems.length}</span>
             <span style={{ fontSize: 8, color: 'var(--text-muted)', transition: 'transform .15s', transform: impOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
@@ -111,7 +112,7 @@ export default function Sidebar({ onSelectElement, activeElId }) {
   return (
     <>
       <div className="sb-top">
-        <input type="text" placeholder="Cerca…" value={search}
+        <input type="text" placeholder={t('sidebar.search_placeholder')} value={search}
           onChange={e => setSearch(e.target.value)} />
       </div>
       <div className="sb-list">

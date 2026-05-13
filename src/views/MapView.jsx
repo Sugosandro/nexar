@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { getMap, saveMap } from '../firebase/db';
 
-const IMP_KEYS_DATE  = ['principale', 'primario', 'secondario', 'minore'];
-const IMP_LABEL_DATE = { principale: 'Principali', primario: 'Primari', secondario: 'Secondari', minore: 'Minori' };
+const IMP_KEYS_DATE = ['principale', 'primario', 'secondario', 'minore'];
 
 function EventDateRow({ ev, selected, onSelect }) {
   return (
@@ -24,6 +24,7 @@ function EventDateRow({ ev, selected, onSelect }) {
 }
 
 function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
+  const { t } = useTranslation();
   const [open,      setOpen]      = useState(false);
   const [query,     setQuery]     = useState('');
   const [collapsed, setCollapsed] = useState(new Set());
@@ -37,7 +38,7 @@ function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
     ? dateEvents.filter(e => e.name.toLowerCase().includes(query.toLowerCase()) || e.date.includes(query))
     : null;
   const groups    = IMP_KEYS_DATE
-    .map(k => ({ key: k, label: IMP_LABEL_DATE[k], events: dateEvents.filter(e => e.importance === k) }))
+    .map(k => ({ key: k, label: t('importance.' + k), events: dateEvents.filter(e => e.importance === k) }))
     .filter(g => g.events.length > 0);
   const ungrouped = dateEvents.filter(e => !IMP_KEYS_DATE.includes(e.importance));
 
@@ -52,7 +53,7 @@ function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
               <span style={{ fontSize: 12, color: 'var(--text)', fontFamily: "'Crimson Pro', serif" }}>{timeFilter}</span>
             </div>
           ) : (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'Crimson Pro', serif" }}>Scegli un momento…</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'Crimson Pro', serif" }}>{t('map.time_ph')}</span>
           )}
         </div>
         {timeFilter
@@ -62,7 +63,7 @@ function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 300, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-            <input type="text" placeholder="Cerca evento o scrivi data…" value={query} onChange={e => setQuery(e.target.value)} autoFocus
+            <input type="text" placeholder={t('map.time_search_ph')} value={query} onChange={e => setQuery(e.target.value)} autoFocus
               style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
           </div>
           <div style={{ maxHeight: 320, overflowY: 'auto' }}>
@@ -71,13 +72,13 @@ function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
                 style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                 onMouseLeave={e => e.currentTarget.style.background = ''}>
-                <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: 'var(--surface3)', color: 'var(--text-muted)' }}>Usa data</span>
+                <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: 'var(--surface3)', color: 'var(--text-muted)' }}>{t('map.use_date')}</span>
                 <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: "'Crimson Pro', serif" }}>{query}</span>
               </div>
             )}
             {filtered ? (
               filtered.length === 0
-                ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun risultato</div>
+                ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>{t('map.no_results')}</div>
                 : filtered.map(ev => <EventDateRow key={ev.id} ev={ev} selected={timeFilter === ev.date} onSelect={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }} />)
             ) : (
               <>
@@ -95,7 +96,7 @@ function DateFilterPicker({ timeFilter, setTimeFilter, dateEvents }) {
                   </div>
                 ))}
                 {ungrouped.map(ev => <EventDateRow key={ev.id} ev={ev} selected={timeFilter === ev.date} onSelect={() => { setTimeFilter(ev.date); setOpen(false); setQuery(''); }} />)}
-                {dateEvents.length === 0 && <div style={{ padding: '16px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun evento con data nella timeline</div>}
+                {dateEvents.length === 0 && <div style={{ padding: '16px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>{t('map.no_dated_events')}</div>}
               </>
             )}
           </div>
@@ -125,6 +126,7 @@ function getTrackColor(index) { return TRACK_COLORS[index % TRACK_COLORS.length]
 const EL_IMP_ORDER = { Alta: 0, Media: 1, Bassa: 2, Trascurabile: 3 };
 
 function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats }) {
+  const { t } = useTranslation();
   const [open,      setOpen]      = useState(false);
   const [query,     setQuery]     = useState('');
   const [collapsed, setCollapsed] = useState(new Set());
@@ -152,7 +154,7 @@ function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats })
   const uncategorized = trackable
     .filter(e => !catIds.has(e.cat))
     .sort((a, b) => (EL_IMP_ORDER[a.importance] ?? 4) - (EL_IMP_ORDER[b.importance] ?? 4));
-  if (uncategorized.length > 0) groups.push({ id: '__other', name: 'Altro', icon: '●', els: uncategorized });
+  if (uncategorized.length > 0) groups.push({ id: '__other', name: t('map.other_cat'), icon: '●', els: uncategorized });
 
   const ElRow = ({ el }) => {
     const isSelected    = trackEls.has(el.id);
@@ -175,7 +177,7 @@ function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats })
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface2)', border: `1px solid ${open ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: '4px 10px', minWidth: 180, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>👤</span>
         <span style={{ fontSize: 12, color: trackEls.size ? 'var(--text)' : 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", flex: 1 }}>
-          {trackEls.size ? `${trackEls.size} element${trackEls.size !== 1 ? 'i' : 'o'} tracciati` : 'Traccia elementi…'}
+          {trackEls.size ? t('map.tracking', { count: trackEls.size }) : t('map.track_ph')}
         </span>
         {trackEls.size > 0
           ? <button onClick={e => { e.stopPropagation(); setTrackEls(new Set()); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>
@@ -184,16 +186,16 @@ function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats })
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 280, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 32px rgba(0,0,0,.6)', zIndex: 400, overflow: 'hidden' }} onMouseDown={e => e.stopPropagation()}>
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-            <input type="text" placeholder="Cerca elemento…" value={query} onChange={e => setQuery(e.target.value)} autoFocus
+            <input type="text" placeholder={t('common.search_browse')} value={query} onChange={e => setQuery(e.target.value)} autoFocus
               style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />
           </div>
           <div style={{ maxHeight: 280, overflowY: 'auto' }}>
             {filtered ? (
               filtered.length === 0
-                ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun risultato</div>
+                ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>{t('map.no_results')}</div>
                 : filtered.map(el => <ElRow key={el.id} el={el} />)
             ) : groups.length === 0
-              ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>Nessun elemento tracciabile</div>
+              ? <div style={{ padding: '14px 12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>{t('map.no_trackable')}</div>
               : groups.map(g => (
                 <div key={g.id}>
                   <div onClick={() => toggleGroup(g.id)}
@@ -210,8 +212,8 @@ function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats })
           </div>
           {trackEls.size > 0 && (
             <div style={{ padding: '6px 12px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{trackEls.size} selezionat{trackEls.size !== 1 ? 'i' : 'o'}</span>
-              <button className="btn-g" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => { setTrackEls(new Set()); setOpen(false); }}>Rimuovi tutti</button>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('map.selected', { count: trackEls.size })}</span>
+              <button className="btn-g" style={{ fontSize: 10, padding: '2px 8px' }} onClick={() => { setTrackEls(new Set()); setOpen(false); }}>{t('map.remove_all')}</button>
             </div>
           )}
         </div>
@@ -221,31 +223,30 @@ function TrackPicker({ elements, trackEls, setTrackEls, elColor, elIcon, cats })
 }
 
 export default function MapView({ onOpenElement }) {
+  const { t } = useTranslation();
   const { elements, elColor, elIcon, uid, wid, allCats } = useWorld();
-  const [mapImage,   setMapImage]   = useState('');
-  const [pois,       setPois]       = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [placing,    setPlacing]    = useState(false);
+  const [mapImage,    setMapImage]    = useState('');
+  const [pois,        setPois]        = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [placing,     setPlacing]     = useState(false);
   const [newPoiEl,    setNewPoiEl]    = useState('');
   const [newPoiName,  setNewPoiName]  = useState('');
   const [newPoiColor, setNewPoiColor] = useState('');
-  const [pendingPoi, setPendingPoi] = useState(null);
-  const [selected,   setSelected]   = useState(null);
-  const [timeFilter, setTimeFilter] = useState('');
-  const [trackEls,   setTrackEls]   = useState(new Set());
+  const [pendingPoi,  setPendingPoi]  = useState(null);
+  const [selected,    setSelected]    = useState(null);
+  const [timeFilter,  setTimeFilter]  = useState('');
+  const [trackEls,    setTrackEls]    = useState(new Set());
   const cats = allCats();
 
   // ── Zoom / Pan ──
-  // Tutto avviene tramite refs per evitare re-render durante il movimento
   const wrapRef    = useRef(null);
   const imgRef     = useRef(null);
   const transform  = useRef({ x: 0, y: 0, scale: 1 });
   const layerRef   = useRef(null);
-  const drag       = useRef(null); // { startX, startY, originX, originY }
+  const drag       = useRef(null);
   const didDrag    = useRef(false);
-  const [, forceUpdate] = useState(0); // usato solo per re-render dopo reset
+  const [, forceUpdate] = useState(0);
 
-  // Area effettiva dell'immagine nel layer (compensando objectFit:contain)
   const [imgArea, setImgArea] = useState({ left: 0, top: 0, w: 1, h: 1 });
 
   const calcImgArea = () => {
@@ -262,14 +263,12 @@ export default function MapView({ onOpenElement }) {
     setImgArea({ left: iL, top: iT, w: iW, h: iH });
   };
 
-  // Ricalcola quando il wrapper cambia dimensione
   useEffect(() => {
     const ro = new ResizeObserver(calcImgArea);
     if (wrapRef.current) ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, [mapImage]);
 
-  // Applica trasformazione direttamente al DOM (nessun re-render React)
   const applyTransform = () => {
     if (!layerRef.current) return;
     const { x, y, scale } = transform.current;
@@ -312,27 +311,21 @@ export default function MapView({ onOpenElement }) {
     } catch (err) { console.error(err); }
   };
 
-  // ── Converti click viewport → percentuale sull'immagine ──
-  // Usa imgArea (coordinate locali nel layer pre-trasformazione) + inverte zoom/pan.
   const getMapCoords = (clientX, clientY) => {
     const wrap = wrapRef.current;
     if (!wrap) return null;
     const wRect = wrap.getBoundingClientRect();
-    const t = transform.current;
-    // Coordinate locali nel wrapper
+    const tr = transform.current;
     const localX = clientX - wRect.left;
     const localY = clientY - wRect.top;
-    // Inverti trasformazione: translate poi scale (origin 0,0)
-    const preX = (localX - t.x) / t.scale;
-    const preY = (localY - t.y) / t.scale;
-    // Converti in % rispetto all'area immagine reale
+    const preX = (localX - tr.x) / tr.scale;
+    const preY = (localY - tr.y) / tr.scale;
     const x = ((preX - imgArea.left) / imgArea.w) * 100;
     const y = ((preY - imgArea.top)  / imgArea.h) * 100;
     if (x < 0 || x > 100 || y < 0 || y > 100) return null;
     return { x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100 };
   };
 
-  // ── Handlers zoom/pan ──
   const handleWheel = (e) => {
     e.preventDefault();
     const wrap = wrapRef.current;
@@ -341,12 +334,12 @@ export default function MapView({ onOpenElement }) {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     const factor = e.deltaY > 0 ? 0.85 : 1.18;
-    const t      = transform.current;
-    const newScale = Math.min(Math.max(t.scale * factor, 0.4), 10);
+    const tr     = transform.current;
+    const newScale = Math.min(Math.max(tr.scale * factor, 0.4), 10);
     transform.current = {
       scale: newScale,
-      x: mouseX - (mouseX - t.x) * (newScale / t.scale),
-      y: mouseY - (mouseY - t.y) * (newScale / t.scale),
+      x: mouseX - (mouseX - tr.x) * (newScale / tr.scale),
+      y: mouseY - (mouseY - tr.y) * (newScale / tr.scale),
     };
     applyTransform();
   };
@@ -382,16 +375,15 @@ export default function MapView({ onOpenElement }) {
     drag.current = null;
   };
 
-  // Touch
   const lastPinch = useRef(null);
 
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
-    // passive:false necessario per poter chiamare preventDefault sul wheel
     wrap.addEventListener('wheel', handleWheel, { passive: false });
     return () => wrap.removeEventListener('wheel', handleWheel);
-  });  // nessuna dipendenza: ri-registra ad ogni render, sempre l'handler aggiornato
+  });
+
   const handleTouchStart = (e) => {
     didDrag.current = false;
     if (e.touches.length === 1) {
@@ -430,11 +422,11 @@ export default function MapView({ onOpenElement }) {
       const cx     = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
       const cy     = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
       const newScale = Math.min(Math.max(lastPinch.current.originScale * dist / lastPinch.current.dist, 0.4), 10);
-      const t = transform.current;
+      const tr = transform.current;
       transform.current = {
         scale: newScale,
-        x: cx - (cx - t.x) * (newScale / t.scale),
-        y: cy - (cy - t.y) * (newScale / t.scale),
+        x: cx - (cx - tr.x) * (newScale / tr.scale),
+        y: cy - (cy - tr.y) * (newScale / tr.scale),
       };
       applyTransform();
     }
@@ -458,7 +450,7 @@ export default function MapView({ onOpenElement }) {
   const confirmPoi = () => {
     if (!pendingPoi) return;
     const luogo = luoghi.find(l => l.id === newPoiEl);
-    const poi = { id: Date.now(), name: newPoiName.trim() || luogo?.name || 'Punto', x: pendingPoi.x, y: pendingPoi.y, elementId: newPoiEl || null, color: newPoiColor || null };
+    const poi = { id: Date.now(), name: newPoiName.trim() || luogo?.name || t('map.new_poi_title'), x: pendingPoi.x, y: pendingPoi.y, elementId: newPoiEl || null, color: newPoiColor || null };
     const updated = [...pois, poi];
     setPois(updated);
     save(mapImage, updated);
@@ -513,28 +505,25 @@ export default function MapView({ onOpenElement }) {
     return results;
   }, [trackEls, elements, pois, timeFilter]);
 
-  if (loading) return <div className="view"><div className="view-loading"><span className="spin">✨</span> Caricamento mappa…</div></div>;
+  if (loading) return <div className="view"><div className="view-loading"><span className="spin">✨</span> {t('map.loading')}</div></div>;
 
   return (
     <div className="view map-view" style={{ padding: '20px 24px', height: 'calc(100vh - 54px)', display: 'flex', flexDirection: 'column' }}>
       <div className="view-hd" style={{ marginBottom: 12, flexShrink: 0, flexWrap: 'wrap', gap: 8 }}>
-        <div className="view-title">🗺 <span>Mappa</span></div>
+        <div className="view-title">🗺 <span>{t('nav.map')}</span></div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {mapImage && (
             <>
               <DateFilterPicker timeFilter={timeFilter} setTimeFilter={setTimeFilter} dateEvents={dateEvents} />
-
-              {/* Traccia elementi */}
               <TrackPicker elements={elements} trackEls={trackEls} setTrackEls={setTrackEls} elColor={elColor} elIcon={elIcon} cats={cats} />
-
               <button className="btn-p" onClick={() => setPlacing(p => !p)}>
-                {placing ? '✕ Annulla' : '+ Aggiungi luogo'}
+                {placing ? `✕ ${t('common.cancel')}` : t('map.add_place_btn')}
               </button>
-              {placing && <span style={{ fontSize: 12, color: 'var(--gold)', fontStyle: 'italic' }}>Clicca sulla mappa →</span>}
+              {placing && <span style={{ fontSize: 12, color: 'var(--gold)', fontStyle: 'italic' }}>{t('map.click_hint')}</span>}
             </>
           )}
           <label className="btn-sm" style={{ cursor: 'pointer' }}>
-            🖼 {mapImage ? 'Cambia immagine' : 'Carica mappa'}
+            🖼 {mapImage ? t('map.change_img') : t('map.load_map')}
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
           </label>
         </div>
@@ -543,10 +532,10 @@ export default function MapView({ onOpenElement }) {
       {!mapImage ? (
         <div className="empty" style={{ flex: 1 }}>
           <div className="empty-icon">🗺</div>
-          <div className="empty-title">Nessuna mappa caricata</div>
-          <div className="empty-sub">Carica un'immagine per iniziare</div>
+          <div className="empty-title">{t('map.empty_title')}</div>
+          <div className="empty-sub">{t('map.empty_sub')}</div>
           <label className="btn-p" style={{ marginTop: 16, cursor: 'pointer' }}>
-            🖼 Carica mappa
+            🖼 {t('map.load_map')}
             <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
           </label>
         </div>
@@ -562,26 +551,22 @@ export default function MapView({ onOpenElement }) {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Pulsante reset */}
           <button onClick={e => { e.stopPropagation(); resetView(); }}
             style={{ position: 'absolute', top: 8, right: 8, zIndex: 30, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 11, padding: '4px 8px', cursor: 'pointer', fontFamily: "'Crimson Pro', serif" }}>
             ⊡ Reset
           </button>
 
-          {/* Layer trasformato — contiene immagine, POI e SVG */}
           <div ref={layerRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', transformOrigin: '0 0', transform: 'translate(0px, 0px) scale(1)' }}>
 
-            {/* Immagine — occupa tutto il layer, contain gestito da object-fit */}
             <img
               ref={imgRef}
               src={mapImage}
-              alt="Mappa"
+              alt={t('nav.map')}
               style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }}
               onLoad={calcImgArea}
               draggable={false}
             />
 
-            {/* SVG linee tracciamento — sovrapposto all'immagine, stesse dimensioni */}
             {trackPositions.length > 0 && (
               <svg style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
                 {trackPositions.map(({ elId, color, positions }) =>
@@ -607,7 +592,6 @@ export default function MapView({ onOpenElement }) {
               </svg>
             )}
 
-            {/* POI — posizionati con % relativi all'area immagine */}
             {visiblePois.map(poi => {
               const luogo    = poi.elementId ? elements.find(e => e.id === poi.elementId) : null;
               const color    = poi.color || (luogo ? elColor(luogo) : '#c9a84c');
@@ -622,7 +606,6 @@ export default function MapView({ onOpenElement }) {
                   transform: 'translate(-50%, -100%)', zIndex: isSel ? 10 : 5 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
 
-                    {/* Card info */}
                     {isSel && (
                       <div style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px 12px', boxShadow: '0 6px 24px rgba(0,0,0,.7)', minWidth: 180, maxWidth: 240, zIndex: 20, pointerEvents: 'auto' }}
                         onClick={e => e.stopPropagation()}>
@@ -633,7 +616,7 @@ export default function MapView({ onOpenElement }) {
                         {timeFilter && (
                           <div style={{ marginBottom: 8 }}>
                             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 5 }}>
-                              Presenti il {timeFilter} — {presenti.length > 0 ? `${presenti.length} element${presenti.length !== 1 ? 'i' : 'o'}` : 'nessuno'}
+                              {t('map.present_on', { date: timeFilter })} — {presenti.length > 0 ? t('map.present_count', { count: presenti.length }) : t('map.nobody')}
                             </div>
                             {presenti.length > 0 && (
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -648,29 +631,26 @@ export default function MapView({ onOpenElement }) {
                           </div>
                         )}
                         <div style={{ display: 'flex', gap: 5 }}>
-                          {luogo && <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { onOpenElement(luogo.id); setSelected(null); }}>Apri scheda</button>}
-                          <button className="btn-d" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { handleDeletePoi(poi.id); setSelected(null); }}>Rimuovi</button>
+                          {luogo && <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { onOpenElement(luogo.id); setSelected(null); }}>{t('map.open_card')}</button>}
+                          <button className="btn-d" style={{ fontSize: 10, padding: '3px 9px' }} onClick={() => { handleDeletePoi(poi.id); setSelected(null); }}>{t('map.poi_remove')}</button>
                         </div>
                       </div>
                     )}
 
-                    {/* Marker */}
                     <div onClick={e => { e.stopPropagation(); setSelected(isSel ? null : poi.id); }}
                       style={{ width: presenti.length > 0 ? 18 : 14, height: presenti.length > 0 ? 18 : 14, borderRadius: '50% 50% 50% 0', transform: isSel ? 'rotate(-45deg) scale(1.25)' : 'rotate(-45deg)', background: color, border: '2px solid rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: presenti.length > 0 ? `0 0 8px ${color}` : '0 2px 4px rgba(0,0,0,.6)', transition: 'all .2s', cursor: 'pointer' }}>
                     </div>
 
-                    {/* Badge presenti */}
                     {timeFilter && presenti.length > 0 && (
                       <div style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', background: 'var(--gold)', color: 'var(--bg)', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'rotate(45deg)', pointerEvents: 'none' }}>
                         {presenti.length}
                       </div>
                     )}
 
-                    {/* Pallini tracciamento */}
                     {trackPositions.map(({ elId, color: tColor, positions }) => {
                       const isHere = positions.length > 0 && positions[positions.length - 1].id === poi.id;
                       if (!isHere) return null;
-                      const tIdx = trackPositions.findIndex(t => t.elId === elId);
+                      const tIdx = trackPositions.findIndex(tr => tr.elId === elId);
                       return (
                         <div key={elId} style={{ position: 'absolute', bottom: -4, left: '50%', transform: `translateX(calc(-50% + ${tIdx * 10 - (trackPositions.length - 1) * 5}px)) rotate(45deg)`, width: 8, height: 8, borderRadius: '50%', background: tColor, border: '1px solid var(--surface)', pointerEvents: 'none' }} />
                       );
@@ -679,20 +659,19 @@ export default function MapView({ onOpenElement }) {
                 </div>
               );
             })}
-          </div>{/* fine layer */}
+          </div>
 
-          {/* Modal nuovo POI — fuori dal layer, centrato nel wrapper */}
           {pendingPoi && (
             <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)', background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 10, padding: '14px 16px', zIndex: 50, minWidth: 220, boxShadow: '0 8px 32px rgba(0,0,0,.7)' }}
               onClick={e => e.stopPropagation()}>
-              <div style={{ fontSize: 13, color: 'var(--gold)', marginBottom: 10, fontFamily: "'Playfair Display', serif" }}>📍 Nuovo punto</div>
-              <input className="fi" style={{ fontSize: 13, marginBottom: 8 }} placeholder="Nome del punto…" value={newPoiName} onChange={e => setNewPoiName(e.target.value)} autoFocus autoComplete="off" />
+              <div style={{ fontSize: 13, color: 'var(--gold)', marginBottom: 10, fontFamily: "'Playfair Display', serif" }}>{t('map.new_poi_title')}</div>
+              <input className="fi" style={{ fontSize: 13, marginBottom: 8 }} placeholder={t('map.poi_name_ph')} value={newPoiName} onChange={e => setNewPoiName(e.target.value)} autoFocus autoComplete="off" />
               <select className="fs" style={{ fontSize: 13, marginBottom: 10 }} value={newPoiEl} onChange={e => setNewPoiEl(e.target.value)}>
-                <option value="">— Collega a luogo (opz.) —</option>
+                <option value="">{t('map.poi_link_ph')}</option>
                 {luoghi.map(l => <option key={l.id} value={l.id}>📍 {l.name}</option>)}
               </select>
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>Colore</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>{t('map.color_lbl')}</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                   {[
                     { c: '', label: 'A' },
@@ -708,8 +687,8 @@ export default function MapView({ onOpenElement }) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn-g" style={{ flex: 1, fontSize: 12 }} onClick={() => { setPendingPoi(null); setNewPoiEl(''); setNewPoiName(''); setNewPoiColor(''); }}>Annulla</button>
-                <button className="btn-p" style={{ flex: 1, fontSize: 12 }} onClick={confirmPoi}>Conferma</button>
+                <button className="btn-g" style={{ flex: 1, fontSize: 12 }} onClick={() => { setPendingPoi(null); setNewPoiEl(''); setNewPoiName(''); setNewPoiColor(''); }}>{t('common.cancel')}</button>
+                <button className="btn-p" style={{ flex: 1, fontSize: 12 }} onClick={confirmPoi}>{t('map.confirm_btn')}</button>
               </div>
             </div>
           )}

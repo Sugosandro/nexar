@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 
 export default function GlobalSearch({ onOpen }) {
+  const { t } = useTranslation();
   const { elements, arcs, fazioni, magie, elColor, elIcon, allCats } = useWorld();
-  const [query,   setQuery]   = useState('');
-  const [open,    setOpen]    = useState(false);
-  const [selIdx,  setSelIdx]  = useState(0);
-  const inputRef  = useRef(null);
+  const [query,  setQuery]  = useState('');
+  const [open,   setOpen]   = useState(false);
+  const [selIdx, setSelIdx] = useState(0);
+  const inputRef = useRef(null);
   const cats = allCats();
 
   const q = query.toLowerCase().trim();
@@ -19,15 +21,15 @@ export default function GlobalSearch({ onOpen }) {
     })),
     ...arcs.map(a => ({
       id: a.id, type: 'arc', label: a.name,
-      sub: 'Arco narrativo', color: '#e8a0a8', icon: '📖',
+      sub: t('search.arc_sub'), color: '#e8a0a8', icon: '📖',
     })),
     ...fazioni.map(f => ({
       id: f.id, type: 'fazione', label: f.name,
-      sub: 'Fazione', color: '#f0c060', icon: '⚔',
+      sub: t('search.faction_sub'), color: '#f0c060', icon: '⚔',
     })),
     ...magie.map(m => ({
       id: m.id, type: 'magia', label: m.name,
-      sub: 'Sistema di magia', color: '#a0d0c0', icon: '✨',
+      sub: t('search.magic_sub'), color: '#a0d0c0', icon: '✨',
     })),
   ].filter(r => r.label.toLowerCase().includes(q)).slice(0, 10) : [];
 
@@ -46,7 +48,6 @@ export default function GlobalSearch({ onOpen }) {
     if (e.key === 'Escape') { setQuery(''); setOpen(false); inputRef.current?.blur(); }
   };
 
-  // Shortcut globale Ctrl+K
   useEffect(() => {
     const handler = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -61,7 +62,6 @@ export default function GlobalSearch({ onOpen }) {
 
   return (
     <div style={{ position: 'relative', flex: 1, maxWidth: 320, minWidth: 0 }}>
-      {/* Input */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 7,
         background: 'var(--surface2)', border: '1px solid var(--border)',
@@ -73,7 +73,7 @@ export default function GlobalSearch({ onOpen }) {
         <input
           ref={inputRef}
           type="text"
-          placeholder="Cerca ovunque…"
+          placeholder={t('search.placeholder')}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
@@ -91,7 +91,6 @@ export default function GlobalSearch({ onOpen }) {
         </span>
       </div>
 
-      {/* Dropdown risultati */}
       {open && query && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
@@ -101,7 +100,7 @@ export default function GlobalSearch({ onOpen }) {
         }}>
           {results.length === 0 ? (
             <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Nessun risultato per "{query}"
+              {t('search.no_results', { query })}
             </div>
           ) : (
             <>
@@ -128,7 +127,7 @@ export default function GlobalSearch({ onOpen }) {
                 </div>
               ))}
               <div style={{ padding: '6px 14px', fontSize: 10, color: 'var(--text-muted)', textAlign: 'right' }}>
-                {results.length} risultat{results.length !== 1 ? 'i' : 'o'} • ↑↓ per navigare
+                {t('search.results_count', { count: results.length })}
               </div>
             </>
           )}

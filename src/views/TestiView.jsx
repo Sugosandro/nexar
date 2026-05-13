@@ -1,5 +1,6 @@
 // src/views/TestiView.jsx
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { subscribeTexts, saveText, loadTextContent, deleteText, updateTextMeta } from '../firebase/db';
 
@@ -9,13 +10,14 @@ function formatSize(chars) {
   return `${(chars / 1_000_000).toFixed(2)}M car.`;
 }
 
-function formatDate(ts) {
+function formatDate(ts, lang = 'it') {
   if (!ts) return '';
   const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(lang, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function TestiView({ onAnalyze, showToast }) {
+  const { t, i18n } = useTranslation();
   const { uid, wid } = useWorld();
 
   const [texts,       setTexts]       = useState([]);
@@ -36,9 +38,11 @@ export default function TestiView({ onAnalyze, showToast }) {
 
   // Divide il testo in capitoli per la vista lettura
   const splitForReading = (text, customSep = '') => {
+    const defaultTitle = t('testi.start_title');
+    const getSectionTitle = (n) => t('testi.section_n', { n });
     const lines = text.split('\n');
     const chapters = [];
-    let current = { title: 'Inizio', lines: [] };
+    let current = { title: defaultTitle, lines: [] };
     const sepRegex = customSep.trim()
       ? new RegExp('^' + customSep.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(.*)$', 'i')
       : null;
@@ -51,7 +55,7 @@ export default function TestiView({ onAnalyze, showToast }) {
       );
       if ((isCustom || isAuto) && current.lines.length > 5) {
         chapters.push({ ...current, text: current.lines.join('\n').trim() });
-        let title = line.replace(/^#{1,3}\s/, '').trim() || `Sezione ${chapters.length + 1}`;
+        const title = line.replace(/^#{1,3}\s/, '').trim() || getSectionTitle(chapters.length + 1);
         current = { title, lines: [] };
       } else {
         current.lines.push(line);
@@ -71,15 +75,15 @@ export default function TestiView({ onAnalyze, showToast }) {
   }, [uid, wid]);
 
   const handleSave = async () => {
-    if (!newName.trim()) return showToast('⚠ Inserisci un nome');
-    if (!newText.trim()) return showToast('⚠ Inserisci il testo');
+    if (!newName.trim()) return showToast(t('testi.toast_no_name'));
+    if (!newText.trim()) return showToast(t('testi.toast_no_text'));
     setUploading(true);
     try {
       await saveText(uid, wid, { name: newName.trim(), content: newText, customSep: newSep });
       setNewName(''); setNewText(''); setNewSep(''); setShowForm(false);
-      showToast('✓ Testo salvato');
+      showToast(t('testi.toast_saved'));
     } catch (e) {
-      showToast('⚠ Errore nel salvataggio');
+      showToast(t('testi.toast_save_error'));
       console.error(e);
     }
     setUploading(false);
@@ -104,7 +108,7 @@ export default function TestiView({ onAnalyze, showToast }) {
       const chapters = splitForReading(content, textMeta.customSep || '');
       setReadingText({ meta: textMeta, content, chapters });
     } catch (e) {
-      showToast('⚠ Errore nel caricamento del testo');
+      showToast(t('testi.toast_load_error'));
       console.error(e);
     }
     setLoadingText(null);
@@ -116,23 +120,23 @@ export default function TestiView({ onAnalyze, showToast }) {
       const content = await loadTextContent(uid, wid, text.id);
       onAnalyze({ content, name: text.name, customSep: text.customSep || '' });
     } catch (e) {
-      showToast('⚠ Errore nel caricamento del testo');
+      showToast(t('testi.toast_load_error'));
       console.error(e);
     }
     setLoadingText(null);
   };
 
   const handleDelete = async (tid) => {
-    if (!window.confirm('Eliminare questo testo? L\'azione è irreversibile.')) return;
+    if (!window.confirm(t('testi.delete_confirm'))) return;
     await deleteText(uid, wid, tid);
-    showToast('🗑 Testo eliminato');
+    showToast(t('testi.toast_deleted'));
   };
 
   const handleRename = async (tid) => {
     if (!renameVal.trim()) return;
     await updateTextMeta(uid, wid, tid, { name: renameVal.trim() });
     setRenaming(null);
-    showToast('✓ Rinominato');
+    showToast(t('testi.toast_renamed'));
   };
 
   const tokenEstimate = (chars) => Math.ceil(chars / 4);
@@ -142,23 +146,23 @@ export default function TestiView({ onAnalyze, showToast }) {
       <div className="view-hd">
         <div className="view-title">📄 <span>Testi</span></div>
         <button className="btn-p" onClick={() => setShowForm(s => !s)}>
-          {showForm ? '✕ Annulla' : '+ Nuovo testo'}
+          {showForm ? `✕ ${t('common.cancel')}` : t('testi.new_btn')}
         </button>
       </div>
 
       {/* Form nuovo testo */}
       {showForm && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 'clamp(12px, 3vw, 20px)', marginBottom: 20 }}>
-          <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', marginBottom: 14 }}>Nuovo testo</div>
+          <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', marginBottom: 14 }}>{t('testi.form_title')}</div>
 
           <div className="fg">
-            <label className="fl">Nome</label>
-            <input className="fi" placeholder="Es. Capitolo 1 — L'inizio" value={newName}
+            <label className="fl">{t('common.name_lbl')}</label>
+            <input className="fi" placeholder={t('testi.name_ph')} value={newName}
               onChange={e => setNewName(e.target.value)} autoComplete="off" />
           </div>
 
           <div className="fg">
-            <label className="fl">Separatore capitoli (opzionale)</label>
+            <label className="fl">{t('testi.sep_lbl')}</label>
             <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
               {['', '---', '***', '===', '# ', 'Capitolo'].map(sep => (
                 <button key={sep} type="button" onClick={() => setNewSep(sep)}
@@ -169,7 +173,7 @@ export default function TestiView({ onAnalyze, showToast }) {
                   {sep === '' ? 'Auto' : sep === '# ' ? '# Titolo' : sep}
                 </button>
               ))}
-              <input type="text" placeholder="Personalizzato…" value={newSep}
+              <input type="text" placeholder={t('testi.sep_ph')} value={newSep}
                 onChange={e => setNewSep(e.target.value)}
                 style={{ flex: 1, minWidth: 120, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '3px 10px', outline: 'none' }} />
             </div>
@@ -177,12 +181,12 @@ export default function TestiView({ onAnalyze, showToast }) {
 
           {/* Upload file */}
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', border: '1px dashed var(--border-light)', borderRadius: 7, padding: '9px 14px', cursor: 'pointer', marginBottom: 10, fontSize: 13, color: 'var(--text-muted)' }}>
-            <span>📄</span> Carica file .txt o .md
+            <span>📄</span> {t('testi.upload_lbl')}
             <input type="file" accept=".txt,.md" style={{ display: 'none' }} onChange={handleFileUpload} />
           </label>
 
           <textarea value={newText} onChange={e => setNewText(e.target.value)}
-            placeholder="Oppure incolla qui il testo…"
+            placeholder={t('testi.paste_ph')}
             style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 14, padding: '10px 12px', outline: 'none', resize: 'vertical', minHeight: 160, lineHeight: 1.65 }} />
 
           {newText && (() => {
@@ -198,12 +202,12 @@ export default function TestiView({ onAnalyze, showToast }) {
                 </div>
                 {isBlock && (
                   <div style={{ marginTop: 6, padding: '8px 12px', background: '#3a1515', border: '1px solid #e0707055', borderRadius: 7, fontSize: 13, color: '#e07070', lineHeight: 1.6 }}>
-                    ⚠ Il testo supera il limite di 1MB per documento Firestore. Verrà salvato automaticamente in più chunk, ma considera di dividerlo in testi separati per prestazioni migliori.
+                    {t('testi.warn_too_big')}
                   </div>
                 )}
                 {isWarn && !isBlock && (
                   <div style={{ marginTop: 6, padding: '8px 12px', background: '#3a2a08', border: '1px solid #d4a84c55', borderRadius: 7, fontSize: 13, color: '#d4a84c', lineHeight: 1.6 }}>
-                    ⚠ Il testo è abbastanza lungo ({mb.toFixed(2)} MB). Verrà salvato in {Math.ceil(mb / 0.8)} chunk — funzionerà correttamente ma potrebbe essere lento da caricare.
+                    {t('testi.warn_large', { mb: mb.toFixed(2), chunks: Math.ceil(mb / 0.8) })}
                   </div>
                 )}
               </div>
@@ -211,9 +215,9 @@ export default function TestiView({ onAnalyze, showToast }) {
           })()}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <button className="btn-g" onClick={() => { setShowForm(false); setNewName(''); setNewText(''); setNewSep(''); }}>Annulla</button>
+            <button className="btn-g" onClick={() => { setShowForm(false); setNewName(''); setNewText(''); setNewSep(''); }}>{t('common.cancel')}</button>
             <button className="btn-p" onClick={handleSave} disabled={uploading}>
-              {uploading ? '⏳ Salvataggio…' : '💾 Salva testo'}
+              {uploading ? t('testi.saving') : t('testi.save_btn')}
             </button>
           </div>
         </div>
@@ -221,12 +225,12 @@ export default function TestiView({ onAnalyze, showToast }) {
 
       {/* Lista testi */}
       {loading ? (
-        <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '40px 0' }}>Caricamento…</div>
+        <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '40px 0' }}>{t('testi.loading')}</div>
       ) : texts.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">📄</div>
-          <div className="empty-title">Nessun testo salvato</div>
-          <div className="empty-sub">Salva un testo per poterlo analizzare più volte</div>
+          <div className="empty-title">{t('testi.empty_title')}</div>
+          <div className="empty-sub">{t('testi.empty_sub')}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -250,7 +254,7 @@ export default function TestiView({ onAnalyze, showToast }) {
                       <span>~{Math.round(tokenEstimate(text.charCount || 0) / 1000)}k token</span>
                       {text.chunkCount > 1 && <span>📦 {text.chunkCount} chunk</span>}
                       {text.customSep && <span>Sep: "{text.customSep}"</span>}
-                      <span>{formatDate(text.createdAt)}</span>
+                      <span>{formatDate(text.createdAt, i18n.language)}</span>
                     </div>
                   </div>
                 )}
@@ -259,17 +263,17 @@ export default function TestiView({ onAnalyze, showToast }) {
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   <button className="btn-g" style={{ fontSize: 12 }}
                     onClick={() => { setRenaming(text.id); setRenameVal(text.name); }}>
-                    ✏ Rinomina
+                    {t('testi.rename_btn')}
                   </button>
                   <button className="btn-g" style={{ fontSize: 12 }}
                     onClick={() => handleRead(text)}
                     disabled={loadingText === text.id}>
-                    📖 Leggi
+                    {t('testi.read_btn')}
                   </button>
                   <button className="btn-p" style={{ fontSize: 12 }}
                     onClick={() => handleAnalyze(text)}
                     disabled={loadingText === text.id}>
-                    {loadingText === text.id ? '⏳' : '🔍 Analizza'}
+                    {loadingText === text.id ? '⏳' : t('testi.analyze_btn')}
                   </button>
                   <button className="btn-d" style={{ fontSize: 12 }}
                     onClick={() => handleDelete(text.id)}>
@@ -288,7 +292,7 @@ export default function TestiView({ onAnalyze, showToast }) {
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
-            <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setReadingText(null)}>← Chiudi</button>
+            <button className="btn-g" style={{ fontSize: 12 }} onClick={() => setReadingText(null)}>← {t('common.close')}</button>
             <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--text)', flex: 1 }}>
               {readingText.meta.name}
             </div>
@@ -303,7 +307,7 @@ export default function TestiView({ onAnalyze, showToast }) {
             {readingText.chapters.length > 1 && (
               <div style={{ width: 220, flexShrink: 0, borderRight: '1px solid var(--border)', overflowY: 'auto', padding: '14px 0', display: 'var(--index-display, flex)', flexDirection: 'column' }}>
                 <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', padding: '0 14px 10px' }}>
-                  Indice — {readingText.chapters.length} sezioni
+                  {t('testi.index_title', { count: readingText.chapters.length })}
                 </div>
                 {readingText.chapters.map((ch, i) => (
                   <div key={i}

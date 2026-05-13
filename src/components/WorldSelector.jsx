@@ -1,22 +1,17 @@
-// src/components/WorldSelector.jsx
-// ─────────────────────────────────────────────
-// Schermata di selezione/creazione mondi.
-// Mostrata dopo il login, prima di entrare nell'app.
-// ─────────────────────────────────────────────
-
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { getWorlds, createWorld } from '../firebase/db';
 
 export default function WorldSelector({ user, onSelectWorld }) {
   const { signOut } = useAuth();
-  const [worlds,      setWorlds]      = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [creating,    setCreating]    = useState(false);
-  const [newName,     setNewName]     = useState('');
-  const [showCreate,  setShowCreate]  = useState(false);
+  const { t, i18n } = useTranslation();
+  const [worlds,     setWorlds]     = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [creating,   setCreating]   = useState(false);
+  const [newName,    setNewName]    = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
-  // Carica i mondi dell'utente
   useEffect(() => {
     getWorlds(user.uid).then(data => {
       setWorlds(data);
@@ -38,59 +33,50 @@ export default function WorldSelector({ user, onSelectWorld }) {
         <div className="ws-user">
           <img src={user.photoURL} alt={user.displayName} className="ws-avatar" />
           <span>{user.displayName}</span>
-          <button className="btn-link" onClick={signOut}>Esci</button>
+          <button className="btn-link" onClick={signOut}>{t('ws.sign_out')}</button>
         </div>
       </header>
 
       <main className="ws-main">
-        <h1 className="ws-title">I tuoi mondi</h1>
+        <h1 className="ws-title">{t('ws.title')}</h1>
 
         {loading ? (
-          <div className="ws-loading">Caricamento…</div>
+          <div className="ws-loading">{t('ws.loading')}</div>
         ) : (
           <>
             <div className="ws-grid">
               {worlds.map(w => (
-                <button
-                  key={w.id}
-                  className="ws-card"
-                  onClick={() => onSelectWorld(w.id, w.name)}
-                >
+                <button key={w.id} className="ws-card" onClick={() => onSelectWorld(w.id, w.name)}>
                   <div className="ws-card-icon">🌍</div>
                   <div className="ws-card-name">{w.name}</div>
                   <div className="ws-card-meta">
                     {w.updatedAt?.toDate
-                      ? `Modificato ${w.updatedAt.toDate().toLocaleDateString('it-IT')}`
-                      : 'Nuovo mondo'}
+                      ? t('ws.updated', { date: w.updatedAt.toDate().toLocaleDateString(i18n.language) })
+                      : t('ws.new_world')}
                   </div>
                 </button>
               ))}
 
-              {/* Card "Nuovo mondo" */}
-              <button
-                className="ws-card ws-card-new"
-                onClick={() => setShowCreate(true)}
-              >
+              <button className="ws-card ws-card-new" onClick={() => setShowCreate(true)}>
                 <div className="ws-card-icon">+</div>
-                <div className="ws-card-name">Nuovo mondo</div>
+                <div className="ws-card-name">{t('ws.new_world')}</div>
               </button>
             </div>
 
-            {/* Form creazione */}
             {showCreate && (
               <div className="ws-create-form">
                 <input
                   className="fi"
-                  placeholder="Nome del mondo…"
+                  placeholder={t('ws.placeholder')}
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleCreate()}
                   autoFocus
                 />
                 <div className="ws-create-actions">
-                  <button className="btn-g" onClick={() => setShowCreate(false)}>Annulla</button>
+                  <button className="btn-g" onClick={() => setShowCreate(false)}>{t('ws.cancel')}</button>
                   <button className="btn-p" onClick={handleCreate} disabled={creating || !newName.trim()}>
-                    {creating ? 'Creazione…' : 'Crea mondo'}
+                    {creating ? t('ws.creating') : t('ws.create')}
                   </button>
                 </div>
               </div>

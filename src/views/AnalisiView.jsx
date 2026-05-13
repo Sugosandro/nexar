@@ -1,5 +1,6 @@
 // src/views/AnalisiView.jsx
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { TAG_IMPORTANCE, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
 import ElementModal from '../components/ElementModal';
@@ -15,26 +16,25 @@ const TOKEN_BLOCK = 180_000;  // blocco rosso (limite sicuro per claude-sonnet)
 
 // ── Colori per tipo proposta ───────────────────────────────────────────────
 const TIPO_META = {
-  incongruenza:       { label: 'Incongruenza',       color: '#e07070', bg: '#3a1515', icon: '⚠' },
-  nuovo_elemento:     { label: 'Nuovo elemento',      color: '#8ec8e4', bg: '#1e3d50', icon: '✦' },
-  nuova_connessione:  { label: 'Nuova connessione',   color: '#9fcd8c', bg: '#223818', icon: '🔗' },
-  approfondimento:    { label: 'Approfondimento',     color: '#d4a84c', bg: '#3a2a08', icon: '💡' },
-  nuovo_potere:       { label: 'Nuovo potere',        color: '#c89fd4', bg: '#2e1e3c', icon: '⚡' },
-  modifica_desc:      { label: 'Modifica descrizione',color: '#a0d0c0', bg: '#1a3830', icon: '✏' },
-  modifica_tag:       { label: 'Modifica tag',        color: '#f0c060', bg: '#3a2a08', icon: '🏷' },
-  modifica_fazione:   { label: 'Modifica fazione',    color: '#f5bec5', bg: '#3c1820', icon: '⚔' },
-  modifica_magia:     { label: 'Modifica magia',      color: '#a0d0c0', bg: '#1a3830', icon: '✨' },
-  modifica_arco:      { label: 'Modifica arco',       color: '#d4a84c', bg: '#3a2a08', icon: '📖' },
-  aggiorna_evento:    { label: 'Aggiorna evento',     color: '#7ab8d4', bg: '#1a3040', icon: '📅' },
+  incongruenza:       { labelKey: 'analisi.tipo_incongruenza',      color: '#e07070', bg: '#3a1515', icon: '⚠' },
+  nuovo_elemento:     { labelKey: 'analisi.tipo_nuovo_elemento',     color: '#8ec8e4', bg: '#1e3d50', icon: '✦' },
+  nuova_connessione:  { labelKey: 'analisi.tipo_nuova_connessione',  color: '#9fcd8c', bg: '#223818', icon: '🔗' },
+  approfondimento:    { labelKey: 'analisi.tipo_approfondimento',    color: '#d4a84c', bg: '#3a2a08', icon: '💡' },
+  nuovo_potere:       { labelKey: 'analisi.tipo_nuovo_potere',       color: '#c89fd4', bg: '#2e1e3c', icon: '⚡' },
+  modifica_desc:      { labelKey: 'analisi.tipo_modifica_desc',      color: '#a0d0c0', bg: '#1a3830', icon: '✏' },
+  modifica_tag:       { labelKey: 'analisi.tipo_modifica_tag',       color: '#f0c060', bg: '#3a2a08', icon: '🏷' },
+  modifica_fazione:   { labelKey: 'analisi.tipo_modifica_fazione',   color: '#f5bec5', bg: '#3c1820', icon: '⚔' },
+  modifica_magia:     { labelKey: 'analisi.tipo_modifica_magia',     color: '#a0d0c0', bg: '#1a3830', icon: '✨' },
+  modifica_arco:      { labelKey: 'analisi.tipo_modifica_arco',      color: '#d4a84c', bg: '#3a2a08', icon: '📖' },
+  aggiorna_evento:    { labelKey: 'analisi.tipo_aggiorna_evento',    color: '#7ab8d4', bg: '#1a3040', icon: '📅' },
 };
 
 // ── Divide testo in capitoli ───────────────────────────────────────────────
-function splitChapters(text, customSep = '') {
+function splitChapters(text, customSep = '', defaultTitle = 'Inizio', getSectionTitle = (n) => `Sezione ${n}`) {
   const lines = text.split('\n');
   const chapters = [];
-  let current = { title: 'Inizio', lines: [] };
+  let current = { title: defaultTitle, lines: [] };
 
-  // Separatore custom (es. "***" o "==CAPITOLO==")
   const sepRegex = customSep.trim()
     ? new RegExp('^' + customSep.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(.*)$', 'i')
     : null;
@@ -49,10 +49,9 @@ function splitChapters(text, customSep = '') {
 
     if ((isCustom || isAuto) && current.lines.length > 5) {
       chapters.push({ ...current, text: current.lines.join('\n').trim() });
-      // Titolo: usa il testo dopo il separatore custom, o la riga stessa per auto
       let title = line.trim();
       if (isCustom && customSep.trim()) {
-        title = line.replace(new RegExp(customSep.trim(), 'i'), '').trim() || `Sezione ${chapters.length + 1}`;
+        title = line.replace(new RegExp(customSep.trim(), 'i'), '').trim() || getSectionTitle(chapters.length + 1);
       } else {
         title = line.replace(/^#{1,3}\s/, '').trim() || line.trim();
       }
@@ -140,7 +139,8 @@ function buildWorldContext(elements, arcs, fazioni, magie, allCats) {
 }
 
 // ── Prompt per un singolo capitolo ────────────────────────────────────────
-function buildChapterPrompt(chapterText, chapterTitle, worldContext, chapterIndex, totalChapters) {
+function buildChapterPrompt(chapterText, chapterTitle, worldContext, chapterIndex, totalChapters, lang = 'it') {
+  if (lang === 'en') return buildChapterPromptEN(chapterText, chapterTitle, worldContext, chapterIndex, totalChapters);
   return `Sei un editor letterario che analizza un testo narrativo confrontandolo con la bibbia di un mondo fantasy/narrativo.
 
 STORIA (JSON):
@@ -217,8 +217,86 @@ Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta
 Se non trovi nulla di rilevante per una categoria, omettila. Se non trovi nulla in assoluto, rispondi con [].`;
 }
 
+function buildChapterPromptEN(chapterText, chapterTitle, worldContext, chapterIndex, totalChapters) {
+  return `You are a literary editor analyzing a narrative text and comparing it against a fantasy/narrative world's bible.
+
+WORLD (JSON):
+${worldContext}
+
+TEXT TO ANALYZE — ${chapterTitle} (${chapterIndex+1}/${totalChapters}):
+${chapterText}
+
+Analyze this chapter and identify:
+1. INCONSISTENCIES: facts in the text that contradict the world — wrong names, impossible relationships, continuity errors, powers used incompatibly, equipment used by someone who doesn't own it
+2. NEW ELEMENTS: characters, places, objects or events mentioned in the text but absent from the world. For events always use "cat":"event" and include "eventPlace" and "eventEls" if deducible from the text
+3. NEW CONNECTIONS: relationships between existing world elements that emerge from the text but are not recorded
+4. INSIGHTS: relevant narrative details that would enrich the world — backstory, motivations, physical descriptions, specific abilities, historical dates or locations
+5. UPDATE EVENT: if an event already present in the world appears in the text with participants or a location not yet recorded, use "aggiorna_evento" to flag it
+
+IMPORTANT — be concise: "titolo" max 60 characters, "descrizione" max 120 characters, "desc" in data max 100 characters. Prefer quality over quantity: report only the most relevant observations.
+
+Reply ONLY with a valid JSON array, no text before or after. Each proposal must have this structure:
+[
+  {
+    "tipo": "incongruenza" | "nuovo_elemento" | "nuova_connessione" | "approfondimento" | "nuovo_potere" | "modifica_desc" | "modifica_tag" | "modifica_fazione" | "modifica_magia" | "modifica_arco" | "aggiorna_evento",
+    "titolo": "short proposal title",
+    "descrizione": "detailed explanation of what you found and why it is relevant",
+    "capitolo": "${chapterTitle}",
+    "dati": {
+      // For nuovo_elemento (cat != event):
+      "cat": "char|place|object",
+      "name": "element name",
+      "desc": "suggested description",
+      "importance": "principale|primario|secondario|minore",
+      // For nuovo_elemento with cat = "event":
+      "cat": "event",
+      "name": "event name",
+      "desc": "description",
+      "date": "DD/MM/YYYY or year only",
+      "importance": "principale|primario|secondario|minore",
+      "eventPlace": "location name (must be a place already in WORLD, otherwise omit)",
+      "eventEls": ["character 1", "character 2"],
+      // For aggiorna_evento:
+      "nome_evento": "exact name of the event already present in WORLD",
+      "eventPlace": "location name (must be a place already in WORLD, otherwise omit)",
+      "eventEls": ["element 1", "element 2"],
+      // For nuova_connessione / modifica_tag:
+      "elemento_a": "existing element name",
+      "elemento_b": "existing element name",
+      "relazione": "relation description",
+      // For nuovo_potere:
+      "elemento_coinvolto": "character name",
+      "power_name": "power name",
+      "power_desc": "power description",
+      "power_intensita": "Bassa|Media|Alta|Assoluta",
+      // For modifica_desc:
+      "elemento_coinvolto": "element name to update",
+      "nuova_desc": "suggested description based on the text",
+      // For modifica_fazione:
+      "nome_fazione": "faction name to update",
+      "campo": "desc" | "notes" | "motto",
+      "nuovo_valore": "suggested new content",
+      // For modifica_magia:
+      "nome_magia": "magic system name to update",
+      "campo": "desc" | "notes" | "nuova_regola",
+      "nuovo_valore": "suggested new content",
+      // For modifica_arco:
+      "nome_arco": "arc name to update",
+      "campo": "desc" | "notes" | "nuova_fase",
+      "nuovo_valore": "suggested new content",
+      // For incongruenza/approfondimento:
+      "elemento_coinvolto": "involved element name if applicable",
+      "testo_originale": "short quote from the text (max 80 chars)"
+    }
+  }
+]
+
+If you find nothing relevant for a category, omit it. If you find nothing at all, reply with [].`;
+}
+
 // ── Card singola proposta ──────────────────────────────────────────────────
 function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const meta = TIPO_META[proposal.tipo] || TIPO_META.approfondimento;
 
@@ -246,7 +324,7 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', cursor: 'pointer', userSelect: 'none' }}>
         <span style={{ fontSize: 14, flexShrink: 0 }}>{meta.icon}</span>
         <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: meta.bg, color: meta.color, flexShrink: 0, letterSpacing: '.06em', textTransform: 'uppercase' }}>
-          {meta.label}
+          {t(meta.labelKey)}
         </span>
         {proposal.capitolo && (
           <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0, fontStyle: 'italic' }}>
@@ -305,66 +383,66 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
           <div style={{ display: 'flex', gap: 7, justifyContent: 'flex-end', marginTop: 4 }}>
             <button className="btn-d" style={{ fontSize: 12, padding: '4px 12px' }}
               onClick={() => onDiscard(proposal.id)}>
-              ✕ Scarta
+              {t('analisi.discard_btn')}
             </button>
             {proposal.tipo === 'nuovo_elemento' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                ✦ Crea elemento →
+                {t('analisi.accept_new_element')}
               </button>
             )}
             {proposal.tipo === 'nuova_connessione' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                🔗 Collega elementi
+                {t('analisi.accept_connect')}
               </button>
             )}
             {(proposal.tipo === 'incongruenza' || proposal.tipo === 'approfondimento') && (
               <button className="btn-g" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                📋 Aggiungi nota
+                {t('analisi.accept_note')}
               </button>
             )}
             {proposal.tipo === 'nuovo_potere' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                ⚡ Aggiungi a {proposal.dati?.elemento_coinvolto || 'elemento'}
+                {t('analisi.accept_power', { name: proposal.dati?.elemento_coinvolto || '?' })}
               </button>
             )}
             {proposal.tipo === 'modifica_desc' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                ✏ Aggiorna {proposal.dati?.elemento_coinvolto || 'elemento'}
+                {t('analisi.accept_desc', { name: proposal.dati?.elemento_coinvolto || '?' })}
               </button>
             )}
             {proposal.tipo === 'modifica_tag' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                🏷 Collega tag
+                {t('analisi.accept_tag')}
               </button>
             )}
             {proposal.tipo === 'modifica_fazione' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                ⚔ Aggiorna fazione
+                {t('analisi.accept_faz')}
               </button>
             )}
             {proposal.tipo === 'modifica_magia' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                ✨ Aggiorna magia
+                {t('analisi.accept_mag')}
               </button>
             )}
             {proposal.tipo === 'modifica_arco' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                📖 Aggiorna arco
+                {t('analisi.accept_arc')}
               </button>
             )}
             {proposal.tipo === 'aggiorna_evento' && (
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
-                📅 Aggiorna evento
+                {t('analisi.accept_ev')}
               </button>
             )}
           </div>
@@ -376,6 +454,7 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
 
 // ── COMPONENTE PRINCIPALE ──────────────────────────────────────────────────
 export default function AnalisiView({ onOpenElement, showToast, preloadText, onPreloadConsumed }) {
+  const { t, i18n } = useTranslation();
   const { elements, arcs, fazioni, magie, allCats, uid, wid, addEl, updateEl, updateArc, updateFazione, updateMagia } = useWorld();
 
   // Testo (solo in memoria)
@@ -427,7 +506,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
   useEffect(() => {
     if (!text) { setChapters([]); setTokenEstimate(0); return; }
     const worldCtx = buildWorldContext(elements, arcs, fazioni, magie, allCats);
-    const chaps = splitChapters(text, customSep);
+    const chaps = splitChapters(text, customSep, t('ed.default_title'), (n) => t('ed.section_n', { n }));
     setChapters(chaps);
     // Stima pessimistica: testo + contesto mondo * numero capitoli
     const est = chaps.reduce((acc, c) => acc + estimateTokens(c.text) + estimateTokens(worldCtx) + 800, 0);
@@ -456,7 +535,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
             max_tokens: 8000,
             messages: [{
               role: 'user',
-              content: buildChapterPrompt(chap.text, chap.title, worldContext, i, chapters.length),
+              content: buildChapterPrompt(chap.text, chap.title, worldContext, i, chapters.length, i18n.language),
             }],
           }),
         });
@@ -470,7 +549,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         const raw = data.content?.find(b => b.type === 'text')?.text || '';
         console.log(`[analisi] cap ${i+1} — stop_reason:`, data.stop_reason, '— raw (primi 600 chars):', raw.slice(0, 600));
         if (data.stop_reason === 'max_tokens') {
-          setError(prev => (prev ? prev + '\n' : '') + `⚠ Cap. "${chap.title}": risposta troncata (troppo lunga). Le proposte estratte potrebbero essere incomplete.`);
+          setError(prev => (prev ? prev + '\n' : '') + t('analisi.err_truncated', { title: chap.title }));
         }
 
         // Parsing robusto — gestisce markdown code block, testo prima/dopo, JSON troncato
@@ -514,16 +593,16 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         }
       } catch (e) {
         console.error(`Capitolo ${i+1}:`, e);
-        setError(`Errore al capitolo "${chap.title}": ${e.message}`);
+        setError(t('analisi.err_chapter', { title: chap.title, msg: e.message }));
         // Continua con i prossimi capitoli
       }
     }
 
     if (newProposals.length > 0) {
       await saveProposals(uid, wid, newProposals);
-      showToast(`✓ ${newProposals.length} nuove proposte generate`);
+      showToast(t('analisi.toast_proposals', { count: newProposals.length }));
     } else {
-      showToast('Analisi completata — 0 proposte (controlla console browser per dettagli)');
+      showToast(t('analisi.toast_no_proposals'));
     }
 
     setAnalyzing(false);
@@ -533,7 +612,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
   // ── Scarta proposta ──
   const handleDiscard = async (pid) => {
     await deleteProposal(uid, wid, pid);
-    showToast('Proposta scartata');
+    showToast(t('analisi.toast_discarded'));
   };
 
   // ── Accetta proposta — apre form intermedio editabile ──
@@ -550,7 +629,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
     const elC = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_coinvolto || '').toLowerCase());
 
     if (tipo === 'nuovo_potere') {
-      if (!elC) { showToast('⚠ Elemento non trovato'); return; }
+      if (!elC) { showToast(t('analisi.toast_el_not_found')); return; }
       setEditForm({
         proposal, elC,
         fields: {
@@ -561,7 +640,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         }
       });
     } else if (tipo === 'modifica_desc') {
-      if (!elC) { showToast('⚠ Elemento non trovato'); return; }
+      if (!elC) { showToast(t('analisi.toast_el_not_found')); return; }
       setEditForm({
         proposal, elC,
         fields: {
@@ -569,7 +648,7 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         }
       });
     } else if (tipo === 'nuova_connessione' || tipo === 'modifica_tag') {
-      if (!elA || !elB) { showToast('⚠ Uno o entrambi gli elementi non trovati'); return; }
+      if (!elA || !elB) { showToast(t('analisi.toast_els_not_found')); return; }
       setEditForm({
         proposal, elA, elB,
         fields: {
@@ -582,8 +661,9 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         setEditForm({
           proposal, elC,
           fields: {
-            nota: `[${tipo === 'incongruenza' ? 'INCONGRUENZA' : 'APPROFONDIMENTO'} — ${proposal.capitolo || ''}]
-${proposal.descrizione}`,
+            nota: tipo === 'incongruenza'
+              ? t('analisi.prop_note_inc', { cap: proposal.capitolo || '', desc: proposal.descrizione })
+              : t('analisi.prop_note_app', { cap: proposal.capitolo || '', desc: proposal.descrizione }),
           }
         });
       } else {
@@ -591,28 +671,28 @@ ${proposal.descrizione}`,
       }
     } else if (tipo === 'modifica_fazione') {
       const faz = fazioni.find(f => f.name.toLowerCase() === (proposal.dati?.nome_fazione || '').toLowerCase());
-      if (!faz) { showToast('⚠ Fazione non trovata: ' + (proposal.dati?.nome_fazione || '?')); return; }
+      if (!faz) { showToast(t('analisi.toast_faz_not_found', { name: proposal.dati?.nome_fazione || '?' })); return; }
       setEditForm({
         proposal, faz,
         fields: { campo: proposal.dati?.campo || 'desc', nuovo_valore: proposal.dati?.nuovo_valore || proposal.descrizione || '' },
       });
     } else if (tipo === 'modifica_magia') {
       const mag = magie.find(m => m.name.toLowerCase() === (proposal.dati?.nome_magia || '').toLowerCase());
-      if (!mag) { showToast('⚠ Sistema di magia non trovato: ' + (proposal.dati?.nome_magia || '?')); return; }
+      if (!mag) { showToast(t('analisi.toast_mag_not_found', { name: proposal.dati?.nome_magia || '?' })); return; }
       setEditForm({
         proposal, mag,
         fields: { campo: proposal.dati?.campo || 'desc', nuovo_valore: proposal.dati?.nuovo_valore || proposal.descrizione || '' },
       });
     } else if (tipo === 'modifica_arco') {
       const arc = arcs.find(a => a.name.toLowerCase() === (proposal.dati?.nome_arco || '').toLowerCase());
-      if (!arc) { showToast('⚠ Arco non trovato: ' + (proposal.dati?.nome_arco || '?')); return; }
+      if (!arc) { showToast(t('analisi.toast_arc_not_found', { name: proposal.dati?.nome_arco || '?' })); return; }
       setEditForm({
         proposal, arc,
         fields: { campo: proposal.dati?.campo || 'desc', nuovo_valore: proposal.dati?.nuovo_valore || proposal.descrizione || '' },
       });
     } else if (tipo === 'aggiorna_evento') {
       const ev = elements.find(e => e.cat === 'event' && e.name.toLowerCase() === (proposal.dati?.nome_evento || '').toLowerCase());
-      if (!ev) { showToast('⚠ Evento non trovato: ' + (proposal.dati?.nome_evento || '?')); return; }
+      if (!ev) { showToast(t('analisi.toast_ev_not_found', { name: proposal.dati?.nome_evento || '?' })); return; }
       const placeEl = elements.find(e => e.cat === 'place' && e.name.toLowerCase() === (proposal.dati?.eventPlace || '').toLowerCase());
       const suggestedEls = (proposal.dati?.eventEls || [])
         .map(n => elements.find(e => e.name.toLowerCase() === n.toLowerCase()))
@@ -647,22 +727,22 @@ ${proposal.descrizione}`,
           magiaId:   fields.power_magiaId || '',
         };
         await updateEl(elC.id, { powers: [...(elC.powers || []), newPower] });
-        showToast(`✓ Potere aggiunto a ${elC.name}`);
+        showToast(t('analisi.toast_power_added', { name: elC.name }));
 
       } else if (tipo === 'modifica_desc' && elC) {
         await updateEl(elC.id, { desc: fields.nuova_desc });
-        showToast(`✓ Descrizione di ${elC.name} aggiornata`);
+        showToast(t('analisi.toast_desc_updated', { name: elC.name }));
 
       } else if ((tipo === 'nuova_connessione' || tipo === 'modifica_tag') && elA && elB) {
         const newTag = { id: elB.id, rel: fields.rel || '', importance: fields.importance || 'Media' };
-        const tagsA  = [...(elA.tags || []).filter(t => (typeof t === 'string' ? t : t?.id) !== elB.id), newTag];
+        const tagsA  = [...(elA.tags || []).filter(tg => (typeof tg === 'string' ? tg : tg?.id) !== elB.id), newTag];
         await updateEl(elA.id, { tags: tagsA });
-        showToast(`✓ Collegamento aggiunto tra ${elA.name} e ${elB.name}`);
+        showToast(t('analisi.toast_connected', { a: elA.name, b: elB.name }));
 
       } else if ((tipo === 'incongruenza' || tipo === 'approfondimento') && elC) {
         const notePrev = elC.notes ? elC.notes + '\n\n' + fields.nota : fields.nota;
         await updateEl(elC.id, { notes: notePrev });
-        showToast(`✓ Nota aggiunta a ${elC.name}`);
+        showToast(t('analisi.toast_note_added', { name: elC.name }));
       }
 
       // ── Modifica fazione ──
@@ -677,7 +757,7 @@ ${proposal.descrizione}`,
         } else {
           await updateFazione(faz.id, { [campo]: fields.nuovo_valore });
         }
-        showToast(`✓ Fazione ${faz.name} aggiornata`);
+        showToast(t('analisi.toast_faz_updated', { name: faz.name }));
       }
 
       // ── Modifica magia ──
@@ -692,7 +772,7 @@ ${proposal.descrizione}`,
         } else {
           await updateMagia(mag.id, { [campo]: fields.nuovo_valore });
         }
-        showToast(`✓ Sistema ${mag.name} aggiornato`);
+        showToast(t('analisi.toast_mag_updated', { name: mag.name }));
       }
 
       // ── Modifica arco ──
@@ -707,7 +787,7 @@ ${proposal.descrizione}`,
         } else {
           await updateArc(arc.id, { [campo]: fields.nuovo_valore });
         }
-        showToast(`✓ Arco ${arc.name} aggiornato`);
+        showToast(t('analisi.toast_arc_updated', { name: arc.name }));
       }
 
       // ── Aggiorna evento ──
@@ -725,16 +805,16 @@ ${proposal.descrizione}`,
             if (!el) continue;
             const exists = (el.changelog || []).some(c => c.date === ev.date && c.placeId === placeId);
             if (!exists) {
-              await updateEl(elId, { changelog: [...(el.changelog || []), { date: ev.date, placeId, text: `Presente durante: ${ev.name}` }] });
+              await updateEl(elId, { changelog: [...(el.changelog || []), { date: ev.date, placeId, text: t('dp.el_present_in', { name: ev.name }) }] });
             }
           }
         }
-        showToast(`✓ Evento "${ev.name}" aggiornato`);
+        showToast(t('analisi.toast_ev_updated', { name: ev.name }));
       }
 
       await deleteProposal(uid, wid, proposal.id);
     } catch (e) {
-      showToast('⚠ Errore nell\'applicazione della modifica');
+      showToast(t('analisi.toast_apply_error'));
       console.error(e);
     }
 
@@ -771,11 +851,10 @@ ${proposal.descrizione}`,
         powers:     [],
         equip:      [],
         changelog:  [],
-        notes:      `Suggerito dall'analisi — ${proposal.capitolo || ''}\n\n${proposal.descrizione}`,
+        notes:      `${t('analisi.prop_from_analysis')} — ${proposal.capitolo || ''}\n\n${proposal.descrizione}`,
       };
     }
     if (proposal.tipo === 'nuova_connessione') {
-      // Pre-compila come personaggio con nota sulla connessione
       const elA = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_a || '').toLowerCase());
       const elB = elements.find(e => e.name.toLowerCase() === (proposal.dati?.elemento_b || '').toLowerCase());
       return {
@@ -789,7 +868,7 @@ ${proposal.descrizione}`,
         powers:     [],
         equip:      [],
         changelog:  [],
-        notes:      `Suggerito dall'analisi — ${proposal.capitolo || ''}\n\n${proposal.descrizione}`,
+        notes:      `${t('analisi.prop_from_analysis')} — ${proposal.capitolo || ''}\n\n${proposal.descrizione}`,
       };
     }
     if (proposal.tipo === 'nuovo_potere') {
@@ -806,12 +885,12 @@ ${proposal.descrizione}`,
         powers:     targetEl?.powers || [],
         equip:      targetEl?.equip || [],
         changelog:  targetEl?.changelog || [],
-        notes:      `POTERE SUGGERITO:
-Nome: ${proposal.dati?.power_name || ''}
-Descrizione: ${proposal.dati?.power_desc || ''}
-Intensità: ${proposal.dati?.power_intensita || 'Media'}
-
-${targetEl?.notes || ''}`,
+        notes:      t('analisi.prop_note_power', {
+          name: proposal.dati?.power_name || '',
+          desc: proposal.dati?.power_desc || '',
+          int:  proposal.dati?.power_intensita || 'Media',
+          prev: targetEl?.notes || '',
+        }),
         _proposedPower: {
           name: proposal.dati?.power_name || proposal.titolo,
           desc: proposal.dati?.power_desc || proposal.descrizione,
@@ -864,7 +943,7 @@ ${targetEl?.notes || ''}`,
       powers:     [],
       equip:      [],
       changelog:  [],
-      notes:      `Capitolo: ${proposal.capitolo || '—'}\n\n${proposal.descrizione}`,
+      notes:      `${t('analisi.prop_chapter_lbl', { cap: proposal.capitolo || '—' })}\n\n${proposal.descrizione}`,
     };
   };
 
@@ -884,10 +963,10 @@ ${targetEl?.notes || ''}`,
     : tokenEstimate > TOKEN_WARN  ? '#d4a84c'
     : '#9fcd8c';
 
-  const tokenLabel = tokenEstimate === 0 ? '—'
-    : tokenEstimate > TOKEN_BLOCK ? `~${Math.round(tokenEstimate/1000)}k token — TROPPO LUNGO`
-    : tokenEstimate > TOKEN_WARN  ? `~${Math.round(tokenEstimate/1000)}k token — lungo, potrebbe essere lento`
-    : `~${Math.round(tokenEstimate/1000)}k token — ok`;
+  const tokenLabel = tokenEstimate === 0 ? t('analisi.tok_empty')
+    : tokenEstimate > TOKEN_BLOCK ? t('analisi.tok_too_long', { k: Math.round(tokenEstimate/1000) })
+    : tokenEstimate > TOKEN_WARN  ? t('analisi.tok_warn',     { k: Math.round(tokenEstimate/1000) })
+    : t('analisi.tok_ok', { k: Math.round(tokenEstimate/1000) });
 
   // ── Conteggi per tipo ──
   const counts = useMemo(() => {
@@ -906,11 +985,11 @@ ${targetEl?.notes || ''}`,
         {proposals.length > 0 && (
           <button className="btn-d" style={{ fontSize: 12 }}
             onClick={async () => {
-              if (!window.confirm(`Eliminare tutte le ${proposals.length} proposte salvate?`)) return;
+              if (!window.confirm(t('analisi.clear_all_confirm', { count: proposals.length }))) return;
               await deleteAllProposals(uid, wid);
-              showToast('🗑 Tutte le proposte eliminate');
+              showToast(t('analisi.clear_btn'));
             }}>
-            🗑 Svuota tutto
+            {t('analisi.clear_btn')}
           </button>
         )}
       </div>
@@ -921,16 +1000,16 @@ ${targetEl?.notes || ''}`,
         <div className="analisi-col-testo">
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 16, minWidth: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)' }}>Testo da analizzare</div>
+              <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)' }}>{t('analisi.text_lbl')}</div>
               {text && (
-                <button className="btn-g" style={{ fontSize: 11 }} onClick={() => setText('')}>✕ Cancella</button>
+                <button className="btn-g" style={{ fontSize: 11 }} onClick={() => setText('')}>{t('analisi.clear_text')}</button>
               )}
             </div>
 
             {/* Separatore capitoli */}
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.09em', color: 'var(--text-muted)', marginBottom: 6 }}>
-                Separatore capitoli
+                {t('analisi.sep_lbl')}
               </div>
               <div className="analisi-sep-btns" style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                 {['', '---', '***', '===', '# ', 'Capitolo'].map(sep => (
@@ -946,7 +1025,7 @@ ${targetEl?.notes || ''}`,
                 ))}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="text" placeholder="Separatore personalizzato…" value={customSep}
+                <input type="text" placeholder={t('analisi.sep_ph')} value={customSep}
                   onChange={e => setCustomSep(e.target.value)}
                   style={{ flex: 1, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
                 {customSep && <button type="button" onClick={() => setCustomSep('')}
@@ -954,8 +1033,8 @@ ${targetEl?.notes || ''}`,
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
                 {customSep
-                  ? `Divisione ogni volta che trova "${customSep}" a inizio riga`
-                  : 'Divisione automatica su # titoli, Capitolo N, --- e simili'}
+                  ? t('analisi.sep_hint_custom', { sep: customSep })
+                  : t('analisi.sep_hint_auto')}
               </div>
             </div>
 
@@ -964,7 +1043,7 @@ ${targetEl?.notes || ''}`,
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--gold-dim)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}>
               <span style={{ fontSize: 16 }}>📄</span>
-              <span>Carica file .txt o .md</span>
+              <span>{t('analisi.upload_lbl')}</span>
               <input type="file" accept=".txt,.md" style={{ display: 'none' }}
                 onChange={e => {
                   const file = e.target.files[0];
@@ -976,12 +1055,12 @@ ${targetEl?.notes || ''}`,
                 }} />
             </label>
 
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, textAlign: 'center' }}>oppure</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, textAlign: 'center' }}>{t('analisi.or')}</div>
 
             <textarea ref={textareaRef}
               value={text}
               onChange={e => setText(e.target.value)}
-              placeholder="Incolla qui il testo della storia…"
+              placeholder={t('analisi.text_ph')}
               style={{
                 width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)',
                 borderRadius: 7, color: 'var(--text)', fontFamily: "'Crimson Pro', serif",
@@ -998,14 +1077,14 @@ ${targetEl?.notes || ''}`,
             {/* Avviso blocco */}
             {tokenEstimate > TOKEN_BLOCK && (
               <div style={{ marginTop: 10, padding: '10px 12px', background: '#3a1515', border: '1px solid #e0707055', borderRadius: 7, fontSize: 13, color: '#e07070', lineHeight: 1.6 }}>
-                ⚠ Il testo è troppo lungo per essere analizzato in un'unica sessione. Prova a dividerlo in parti più piccole e caricale separatamente.
+                {t('analisi.warn_too_long')}
               </div>
             )}
 
             {/* Avviso warning */}
             {tokenEstimate > TOKEN_WARN && tokenEstimate <= TOKEN_BLOCK && (
               <div style={{ marginTop: 10, padding: '10px 12px', background: '#3a2a08', border: '1px solid #d4a84c55', borderRadius: 7, fontSize: 13, color: '#d4a84c', lineHeight: 1.6 }}>
-                ⚠ Il testo è lungo. L'analisi richiederà più tempo e chiamate API multiple. Puoi procedere, ma tieniti pronto ad aspettare.
+                {t('analisi.warn_long')}
               </div>
             )}
           </div>
@@ -1014,7 +1093,7 @@ ${targetEl?.notes || ''}`,
           {chapters.length > 0 && (
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', marginBottom: 16 }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', marginBottom: 12 }}>
-                {chapters.length} capitoli / sezioni rilevati
+                {t('analisi.chapters_found', { count: chapters.length })}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
                 {chapters.map((c, i) => (
@@ -1046,8 +1125,10 @@ ${targetEl?.notes || ''}`,
               opacity: !text.trim() || tokenEstimate > TOKEN_BLOCK ? .5 : 1,
             }}>
             {analyzing
-              ? `⏳ Analisi in corso — capitolo ${progress.current}/${progress.total}: "${progress.label}"…`
-              : `🔍 Avvia analisi${chapters.length > 1 ? ` (${chapters.length} capitoli)` : ''}`
+              ? t('analisi.analyzing', { current: progress.current, total: progress.total, label: progress.label })
+              : chapters.length > 1
+                ? t('analisi.analyze_btn_chapters', { count: chapters.length })
+                : t('analisi.analyze_btn')
             }
           </button>
 
@@ -1064,7 +1145,7 @@ ${targetEl?.notes || ''}`,
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: proposals.length > 0 ? 12 : 0 }}>
               <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)' }}>
-                Proposte salvate
+                {t('analisi.proposals_lbl')}
                 {proposals.length > 0 && <span style={{ marginLeft: 8, color: 'var(--text)', fontWeight: 600 }}>{proposals.length}</span>}
               </div>
             </div>
@@ -1083,7 +1164,7 @@ ${targetEl?.notes || ''}`,
                       fontFamily: "'Crimson Pro', serif",
                       transition: 'all .15s',
                     }}>
-                    {meta.icon} {meta.label} ({counts[tipo]})
+                    {meta.icon} {t(meta.labelKey)} ({counts[tipo]})
                   </button>
                 ) : null)}
               </div>
@@ -1093,7 +1174,7 @@ ${targetEl?.notes || ''}`,
             {capList.length > 1 && (
               <select className="fs" style={{ margin: 0, fontSize: 12, padding: '4px 10px' }}
                 value={filterCap} onChange={e => setFilterCap(e.target.value)}>
-                <option value="">Tutti i capitoli</option>
+                <option value="">{t('analisi.filter_all_caps')}</option>
                 {capList.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             )}
@@ -1102,13 +1183,11 @@ ${targetEl?.notes || ''}`,
           {/* Lista proposte */}
           {loadingProps ? (
             <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14, padding: '20px 0', textAlign: 'center' }}>
-              Caricamento proposte…
+              {t('analisi.loading_proposals')}
             </div>
           ) : filteredProposals.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14, padding: '30px 0', textAlign: 'center', lineHeight: 1.8 }}>
-              {proposals.length === 0
-                ? 'Nessuna proposta ancora.\nCarica un testo e avvia l\'analisi.'
-                : 'Nessuna proposta per i filtri selezionati.'}
+            <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14, padding: '30px 0', textAlign: 'center', lineHeight: 1.8, whiteSpace: 'pre-line' }}>
+              {proposals.length === 0 ? t('analisi.no_proposals') : t('analisi.no_proposals_filtered')}
             </div>
           ) : (
             <div>
@@ -1145,20 +1224,20 @@ ${targetEl?.notes || ''}`,
             {editForm.proposal.tipo === 'nuovo_potere' && editForm.elC && (
               <div>
                 <div style={{ fontSize: 11, color: '#c89fd4', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
-                  Aggiunge potere a <strong>{editForm.elC.name}</strong>
+                  {t('analisi.form_add_power_to')} <strong>{editForm.elC.name}</strong>
                 </div>
                 <div className="fg">
-                  <label className="fl">Nome potere</label>
+                  <label className="fl">{t('analisi.form_power_name_lbl')}</label>
                   <input className="fi" value={editForm.fields.power_name}
                     onChange={e => setField('power_name', e.target.value)} autoFocus />
                 </div>
                 <div className="fg">
-                  <label className="fl">Descrizione</label>
+                  <label className="fl">{t('analisi.form_power_desc_lbl')}</label>
                   <textarea className="ft" value={editForm.fields.power_desc}
                     onChange={e => setField('power_desc', e.target.value)} style={{ minHeight: 80 }} />
                 </div>
                 <div className="fg">
-                  <label className="fl">Intensità</label>
+                  <label className="fl">{t('analisi.form_power_int_lbl')}</label>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {['Bassa','Media','Alta','Assoluta'].map(i => (
                       <button key={i} type="button" onClick={() => setField('power_intensita', i)}
@@ -1172,10 +1251,10 @@ ${targetEl?.notes || ''}`,
                   </div>
                 </div>
                 <div className="fg">
-                  <label className="fl">Sistema di magia (opzionale)</label>
+                  <label className="fl">{t('analisi.form_power_magic_lbl')}</label>
                   <select className="fs" value={editForm.fields.power_magiaId}
                     onChange={e => setField('power_magiaId', e.target.value)}>
-                    <option value="">— Nessuno —</option>
+                    <option value="">{t('analisi.form_no_magic')}</option>
                     {magie.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
@@ -1186,7 +1265,7 @@ ${targetEl?.notes || ''}`,
             {editForm.proposal.tipo === 'modifica_desc' && editForm.elC && (
               <div>
                 <div style={{ fontSize: 11, color: '#a0d0c0', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
-                  Aggiorna descrizione di <strong>{editForm.elC.name}</strong>
+                  {t('analisi.form_update_desc_of')} <strong>{editForm.elC.name}</strong>
                 </div>
                 {editForm.elC.desc && (
                   <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 7, fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.5, textDecoration: 'line-through', opacity: .6 }}>
@@ -1194,7 +1273,7 @@ ${targetEl?.notes || ''}`,
                   </div>
                 )}
                 <div className="fg">
-                  <label className="fl">Nuova descrizione</label>
+                  <label className="fl">{t('analisi.form_new_desc_lbl')}</label>
                   <textarea className="ft" value={editForm.fields.nuova_desc}
                     onChange={e => setField('nuova_desc', e.target.value)} style={{ minHeight: 100 }} autoFocus />
                 </div>
@@ -1210,13 +1289,13 @@ ${targetEl?.notes || ''}`,
                   <span style={{ fontStyle: 'italic' }}>{editForm.elB.name}</span>
                 </div>
                 <div className="fg">
-                  <label className="fl">Tipo di relazione (opzionale)</label>
-                  <input className="fi" placeholder="Es. Fratello, Nemico, Alleato…"
+                  <label className="fl">{t('analisi.form_rel_type_lbl')}</label>
+                  <input className="fi" placeholder={t('analisi.form_rel_ph')}
                     value={editForm.fields.rel}
                     onChange={e => setField('rel', e.target.value)} autoFocus />
                 </div>
                 <div className="fg">
-                  <label className="fl">Importanza del collegamento</label>
+                  <label className="fl">{t('analisi.form_rel_imp_lbl')}</label>
                   <div style={{ display: 'flex', gap: 6 }}>
                     {TAG_IMPORTANCE.map(imp => (
                       <button key={imp} type="button" onClick={() => setField('importance', imp)}
@@ -1238,19 +1317,19 @@ ${targetEl?.notes || ''}`,
                 {(() => {
                   const tipo = editForm.proposal.tipo;
                   const target = editForm.faz || editForm.mag || editForm.arc;
-                  const tipoLabel = tipo === 'modifica_fazione' ? 'Fazione' : tipo === 'modifica_magia' ? 'Sistema di magia' : 'Arco narrativo';
+                  const tipoLabel = tipo === 'modifica_fazione' ? t('analisi.form_tipo_fazione') : tipo === 'modifica_magia' ? t('analisi.form_tipo_magia') : t('analisi.form_tipo_arco');
                   const campoOptions = tipo === 'modifica_magia'
-                    ? [{ v: 'desc', l: 'Descrizione' }, { v: 'notes', l: 'Note' }, { v: 'nuova_regola', l: 'Nuova regola' }]
+                    ? [{ v: 'desc', l: t('common.desc_lbl') }, { v: 'notes', l: t('dp.tab_notes') }, { v: 'nuova_regola', l: t('analisi.form_campo_new_rule') }]
                     : tipo === 'modifica_arco'
-                    ? [{ v: 'desc', l: 'Descrizione' }, { v: 'notes', l: 'Note' }, { v: 'nuova_fase', l: 'Nuova fase' }]
-                    : [{ v: 'desc', l: 'Descrizione' }, { v: 'notes', l: 'Note' }, { v: 'motto', l: 'Motto' }];
+                    ? [{ v: 'desc', l: t('common.desc_lbl') }, { v: 'notes', l: t('dp.tab_notes') }, { v: 'nuova_fase', l: t('analisi.form_campo_new_phase') }]
+                    : [{ v: 'desc', l: t('common.desc_lbl') }, { v: 'notes', l: t('dp.tab_notes') }, { v: 'motto', l: t('analisi.form_campo_motto') }];
                   return (
                     <>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
                         {tipoLabel}: <strong style={{ color: 'var(--text)' }}>{target?.name}</strong>
                       </div>
                       <div className="fg">
-                        <label className="fl">Campo da modificare</label>
+                        <label className="fl">{t('analisi.form_campo_lbl')}</label>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {campoOptions.map(o => (
                             <button key={o.v} type="button" onClick={() => setField('campo', o.v)}
@@ -1270,9 +1349,9 @@ ${targetEl?.notes || ''}`,
                       )}
                       <div className="fg">
                         <label className="fl">
-                          {editForm.fields.campo === 'nuova_regola' ? 'Nuova regola da aggiungere' :
-                           editForm.fields.campo === 'nuova_fase'   ? 'Nuova fase da aggiungere' :
-                           'Nuovo contenuto'}
+                          {editForm.fields.campo === 'nuova_regola' ? t('analisi.form_add_rule_lbl') :
+                           editForm.fields.campo === 'nuova_fase'   ? t('analisi.form_add_phase_lbl') :
+                           t('analisi.form_new_content_lbl')}
                         </label>
                         <textarea className="ft" value={editForm.fields.nuovo_valore}
                           onChange={e => setField('nuovo_valore', e.target.value)}
@@ -1288,10 +1367,10 @@ ${targetEl?.notes || ''}`,
             {(editForm.proposal.tipo === 'incongruenza' || editForm.proposal.tipo === 'approfondimento') && editForm.elC && (
               <div>
                 <div style={{ fontSize: 11, color: editForm.proposal.tipo === 'incongruenza' ? '#e07070' : '#d4a84c', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>
-                  Nota per <strong>{editForm.elC.name}</strong>
+                  {t('analisi.form_note_for')} <strong>{editForm.elC.name}</strong>
                 </div>
                 <div className="fg">
-                  <label className="fl">Nota da aggiungere</label>
+                  <label className="fl">{t('analisi.form_note_lbl')}</label>
                   <textarea className="ft" value={editForm.fields.nota}
                     onChange={e => setField('nota', e.target.value)} style={{ minHeight: 100 }} autoFocus />
                 </div>
@@ -1307,18 +1386,18 @@ ${targetEl?.notes || ''}`,
                 </div>
                 {editForm.fields.newPlace && (
                   <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 7, fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.07em' }}>Luogo suggerito</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.07em' }}>{t('analisi.form_ev_place_lbl')}</span>
                     <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 16 }}>📍</span>
                       <span style={{ color: 'var(--text)' }}>{editForm.fields.newPlace.name}</span>
-                      {editForm.ev.eventPlace && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>(sostituisce luogo attuale)</span>}
+                      {editForm.ev.eventPlace && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('analisi.form_ev_replaces')}</span>}
                     </div>
                   </div>
                 )}
                 {editForm.fields.newEls?.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>
-                      Elementi da aggiungere ({editForm.fields.newEls.length})
+                      {t('analisi.form_ev_els_title', { count: editForm.fields.newEls.length })}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {editForm.fields.newEls.map(el => (
@@ -1330,15 +1409,15 @@ ${targetEl?.notes || ''}`,
                   </div>
                 )}
                 {!editForm.fields.newPlace && !editForm.fields.newEls?.length && (
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nessuna modifica da applicare (elementi e luogo già presenti).</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('analisi.form_ev_no_changes')}</div>
                 )}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
-              <button className="btn-g" onClick={() => setEditForm(null)} disabled={applying}>Annulla</button>
+              <button className="btn-g" onClick={() => setEditForm(null)} disabled={applying}>{t('common.cancel')}</button>
               <button className="btn-p" onClick={applyDirect} disabled={applying}>
-                {applying ? '⏳ Applicazione…' : '✓ Applica'}
+                {applying ? t('analisi.form_applying') : t('analisi.form_apply_btn')}
               </button>
             </div>
           </div>
@@ -1358,12 +1437,12 @@ ${targetEl?.notes || ''}`,
                 const el = elements.find(e => e.id === elId);
                 if (!el) continue;
                 const exists = (el.changelog || []).some(c => c.date === data.date && c.placeId === data.eventPlace);
-                if (!exists) await updateEl(elId, { changelog: [...(el.changelog || []), { date: data.date, placeId: data.eventPlace, text: `Presente durante: ${data.name}` }] });
+                if (!exists) await updateEl(elId, { changelog: [...(el.changelog || []), { date: data.date, placeId: data.eventPlace, text: t('dp.el_present_in', { name: data.name }) }] });
               }
             }
             await deleteProposal(uid, wid, acceptModal.id);
             setAcceptModal(null);
-            showToast('✓ Elemento creato dalla proposta');
+            showToast(t('analisi.toast_created_from_prop'));
           }}
           onClose={() => setAcceptModal(null)}
         />

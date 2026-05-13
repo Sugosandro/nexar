@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 
 export default function MagiaModal({ initialData = null, onSave, onClose }) {
+  const { t } = useTranslation();
   const { elements } = useWorld();
   const [name,  setName]  = useState(initialData?.name  || '');
   const [desc,  setDesc]  = useState(initialData?.desc  || '');
@@ -15,31 +17,31 @@ export default function MagiaModal({ initialData = null, onSave, onClose }) {
   const removeUser = (id) => setUsers(p => p.filter(u => u !== id));
 
   const handleSave = () => {
-    if (!name.trim()) { alert('Il nome è obbligatorio'); return; }
+    if (!name.trim()) { alert(t('common.name_required')); return; }
     onSave({ name: name.trim(), desc, rules: rules.split('\n').map(r => r.trim()).filter(Boolean), users, notes: initialData?.notes || '' });
   };
 
   return (
     <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
-        <div className="modal-title">{initialData ? 'Modifica sistema' : 'Nuovo sistema di magia'}</div>
-        <div className="fg"><label className="fl">Nome</label>
-          <input className="fi" placeholder="Es. Alchimia Argentea" value={name} onChange={e => setName(e.target.value)} autoFocus autoComplete="off" />
+        <div className="modal-title">{initialData ? t('magic.title_edit') : t('magic.title_new')}</div>
+        <div className="fg"><label className="fl">{t('common.name_lbl')}</label>
+          <input className="fi" placeholder={t('magic.name_ph')} value={name} onChange={e => setName(e.target.value)} autoFocus autoComplete="off" />
         </div>
-        <div className="fg"><label className="fl">Descrizione</label>
-          <textarea className="ft" placeholder="Come funziona?" value={desc} onChange={e => setDesc(e.target.value)} />
+        <div className="fg"><label className="fl">{t('common.desc_lbl')}</label>
+          <textarea className="ft" placeholder={t('magic.desc_ph')} value={desc} onChange={e => setDesc(e.target.value)} />
         </div>
-        <div className="fg"><label className="fl">Regole (una per riga)</label>
-          <textarea className="ft" placeholder={'Regola 1\nRegola 2'} value={rules} onChange={e => setRules(e.target.value)} style={{ minHeight: 80 }} />
+        <div className="fg"><label className="fl">{t('magic.rules_lbl')}</label>
+          <textarea className="ft" placeholder={t('magic.rules_ph')} value={rules} onChange={e => setRules(e.target.value)} style={{ minHeight: 80 }} />
         </div>
-        <div className="fg"><label className="fl">Chi lo usa</label>
+        <div className="fg"><label className="fl">{t('magic.users_lbl')}</label>
           <div onClick={() => document.getElementById('mUserIn').focus()}
             style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text' }}>
             {users.map(id => { const el = elements.find(e => e.id === id); if (!el) return null;
               return <span key={id} style={{ background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
                 {el.name}<span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }} onClick={e => { e.stopPropagation(); removeUser(id); }}>×</span></span>; })}
             <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
-              <input id="mUserIn" type="text" placeholder={users.length ? '' : 'Cerca elemento…'} value={userQ}
+              <input id="mUserIn" type="text" placeholder={users.length ? '' : t('magic.users_ph')} value={userQ}
                 onChange={e => { setUserQ(e.target.value); setUserOpen(true); }}
                 onFocus={() => setUserOpen(true)} onBlur={() => setTimeout(() => setUserOpen(false), 150)}
                 autoComplete="off"
@@ -56,8 +58,8 @@ export default function MagiaModal({ initialData = null, onSave, onClose }) {
           </div>
         </div>
         <div className="modal-actions">
-          <button className="btn-g" onClick={onClose}>Annulla</button>
-          <button className="btn-p" onClick={handleSave}>{initialData ? 'Salva modifiche' : 'Crea sistema'}</button>
+          <button className="btn-g" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="btn-p" onClick={handleSave}>{initialData ? t('common.save_changes') : t('magic.create_btn')}</button>
         </div>
       </div>
     </div>

@@ -1,13 +1,9 @@
-// src/components/LoginPage.jsx
-// ─────────────────────────────────────────────
-// Pagina di login con Google.
-// Mostrata quando l'utente non è autenticato.
-// ─────────────────────────────────────────────
-
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginPage() {
   const { signIn } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <div className="login-page">
@@ -15,7 +11,7 @@ export default function LoginPage() {
         <div className="login-logo">
           Story<span>World</span>
         </div>
-        <p className="login-tagline">Il tuo universo narrativo, ovunque tu sia</p>
+        <p className="login-tagline">{t('login.tagline')}</p>
 
         <button className="btn-google" onClick={signIn}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -24,12 +20,10 @@ export default function LoginPage() {
             <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
             <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
           </svg>
-          Accedi con Google
+          {t('login.sign_in')}
         </button>
 
-        <p className="login-note">
-          I tuoi dati sono privati e sincronizzati automaticamente su tutti i dispositivi.
-        </p>
+        <p className="login-note">{t('login.privacy_note')}</p>
       </div>
     </div>
   );

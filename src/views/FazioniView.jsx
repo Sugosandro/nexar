@@ -1,121 +1,43 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
-
-function FazioneModal({ initialData = null, onSave, onClose }) {
-  const { elements, fazioni } = useWorld();
-  const chars = elements.filter(e => e.cat === 'char');
-
-  const [name,     setName]     = useState(initialData?.name     || '');
-  const [desc,     setDesc]     = useState(initialData?.desc     || '');
-  const [motto,    setMotto]    = useState(initialData?.motto    || '');
-  const [members,  setMembers]  = useState(initialData?.members  || []);
-  const [parentId, setParentId] = useState(initialData?.parentId || null);
-  const [memQ,     setMemQ]     = useState('');
-  const [memOpen,  setMemOpen]  = useState(false);
-
-  const suggestions = memQ
-    ? chars.filter(e => !members.includes(e.id) && e.name.toLowerCase().includes(memQ.toLowerCase())).slice(0, 6)
-    : [];
-
-  const addMember    = (id) => { setMembers(p => [...p, id]); setMemQ(''); setMemOpen(false); };
-  const removeMember = (id) => setMembers(p => p.filter(m => m !== id));
-
-  const handleSave = () => {
-    if (!name.trim()) { alert('Il nome è obbligatorio'); return; }
-    onSave({ name: name.trim(), desc, motto, members, parentId: parentId || null, rels: initialData?.rels || [], notes: initialData?.notes || '' });
-  };
-
-  return (
-    <div className="modal-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
-        <div className="modal-title">{initialData ? 'Modifica fazione' : 'Nuova fazione'}</div>
-        <div className="fg"><label className="fl">Nome</label>
-          <input className="fi" placeholder="Es. Ordine Nero" value={name} onChange={e => setName(e.target.value)} autoFocus autoComplete="off" />
-        </div>
-        <div className="fg"><label className="fl">Descrizione</label>
-          <textarea className="ft" placeholder="Obiettivi, storia, struttura…" value={desc} onChange={e => setDesc(e.target.value)} />
-        </div>
-        <div className="fg"><label className="fl">Motto / Simbolo</label>
-          <input className="fi" placeholder="Es. Per la purezza eterna" value={motto} onChange={e => setMotto(e.target.value)} autoComplete="off" />
-        </div>
-        <div className="fg"><label className="fl">Fazione genitore (opzionale)</label>
-          <select className="fs" value={parentId || ''} onChange={e => setParentId(e.target.value || null)}>
-            <option value="">— Nessuna —</option>
-            {fazioni.filter(f => f.id !== initialData?.id).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
-        </div>
-        <div className="fg"><label className="fl">Membri</label>
-          <div onClick={() => document.getElementById('memInput').focus()}
-            style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text' }}>
-            {members.map(id => {
-              const el = chars.find(c => c.id === id);
-              if (!el) return null;
-              return <span key={id} style={{ background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                {el.name}<span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }} onClick={e => { e.stopPropagation(); removeMember(id); }}>×</span>
-              </span>;
-            })}
-            <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
-              <input id="memInput" type="text" placeholder={members.length ? '' : 'Cerca personaggio…'} value={memQ}
-                onChange={e => { setMemQ(e.target.value); setMemOpen(true); }}
-                onFocus={() => setMemOpen(true)} onBlur={() => setTimeout(() => setMemOpen(false), 150)}
-                autoComplete="off"
-                style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: '100%' }} />
-              {memOpen && suggestions.length > 0 && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 260, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700 }}>
-                  {suggestions.map(el => <div key={el.id} onMouseDown={() => addMember(el.id)}
-                    style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}>👤 {el.name}</div>)}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="modal-actions">
-          <button className="btn-g" onClick={onClose}>Annulla</button>
-          <button className="btn-p" onClick={handleSave}>{initialData ? 'Salva modifiche' : 'Crea fazione'}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import FazioneModal from '../components/FazioneModal';
 
 function FazioneCard({ fazione, onOpen, depth = 0 }) {
+  const { t } = useTranslation();
   const { elements, fazioni } = useWorld();
-  const [cardOpen, setCardOpen] = useState(true);   // espande/collassa contenuto scheda
-  const [treeOpen, setTreeOpen] = useState(true);   // espande/collassa sottofazioni
+  const [cardOpen, setCardOpen] = useState(true);
+  const [treeOpen, setTreeOpen] = useState(true);
   const members  = (fazione.members || []).map(id => elements.find(e => e.id === id)).filter(Boolean);
   const children = fazioni.filter(f => f.parentId === fazione.id);
 
   return (
     <div style={{ marginLeft: depth * 20, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
-        {/* Freccia albero — visibile solo se ha figli */}
         <button
           onClick={() => setTreeOpen(o => !o)}
           style={{ background: 'none', border: 'none', color: children.length ? 'var(--text-muted)' : 'transparent', cursor: children.length ? 'pointer' : 'default', fontSize: 10, padding: '0 6px', flexShrink: 0, marginTop: 13, width: 22 }}>
           {children.length > 0 ? (treeOpen ? '▼' : '▶') : ''}
         </button>
 
-        {/* Scheda */}
         <div className="card" style={{ borderTop: '3px solid #f0c060', flex: 1 }}>
-          {/* Header sempre visibile — click per espandere/collassare */}
           <div
             onClick={() => setCardOpen(o => !o)}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: cardOpen ? '10px 14px 4px' : '10px 14px', cursor: 'pointer', userSelect: 'none' }}>
             <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>{cardOpen ? '▾' : '▸'}</span>
             <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: 'var(--text)', flex: 1 }}>{fazione.name}</span>
             {children.length > 0 && (
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', opacity: .6 }}>{children.length} sottofazioni</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', opacity: .6 }}>
+                {t('fazv.subfactions', { count: children.length })}
+              </span>
             )}
           </div>
 
-          {/* Corpo espandibile */}
           {cardOpen && (
             <div className="card-body" style={{ paddingTop: 4 }}>
-              <div className="card-type" style={{ color: '#f0c060' }}>⚔ Fazione</div>
+              <div className="card-type" style={{ color: '#f0c060' }}>{t('dp.faz_type')}</div>
               {fazione.motto && <div style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: 11, marginBottom: 4 }}>"{fazione.motto}"</div>}
-              <div className="card-desc">{fazione.desc || <em style={{ opacity: .35 }}>Nessuna descrizione</em>}</div>
+              <div className="card-desc">{fazione.desc || <em style={{ opacity: .35 }}>{t('card.no_desc')}</em>}</div>
               {members.length > 0 && (
                 <div style={{ marginTop: 7, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {members.map(m => <span key={m.id} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 20, background: 'var(--char-dim)', color: 'var(--char)' }}>👤 {m.name}</span>)}
@@ -123,7 +45,7 @@ function FazioneCard({ fazione, onOpen, depth = 0 }) {
               )}
               <div style={{ marginTop: 10 }}>
                 <button className="btn-g" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => onOpen(fazione.id)}>
-                  Apri scheda →
+                  {t('dp.open_card')}
                 </button>
               </div>
             </div>
@@ -139,6 +61,7 @@ function FazioneCard({ fazione, onOpen, depth = 0 }) {
 }
 
 export default function FazioniView({ onOpenFazione, showToast }) {
+  const { t } = useTranslation();
   const { fazioni, addFazione } = useWorld();
   const [showModal, setShowModal] = useState(false);
   const rootFazioni = fazioni.filter(f => !f.parentId);
@@ -146,15 +69,18 @@ export default function FazioniView({ onOpenFazione, showToast }) {
   return (
     <div className="view">
       <div className="view-hd">
-        <div className="view-title">⚔ <span>Fazioni</span></div>
-        <button className="btn-p" onClick={() => setShowModal(true)}>+ Nuova fazione</button>
+        <div className="view-title">⚔ <span>{t('nav.factions')}</span></div>
+        <button className="btn-p" onClick={() => setShowModal(true)}>{t('fazv.new_btn')}</button>
       </div>
       {fazioni.length === 0
-        ? <div className="empty"><div className="empty-icon">⚔</div><div className="empty-title">Nessuna fazione</div><div className="empty-sub">Crea la prima fazione del tuo mondo</div></div>
+        ? <div className="empty"><div className="empty-icon">⚔</div><div className="empty-title">{t('fazv.empty_title')}</div><div className="empty-sub">{t('fazv.empty_sub')}</div></div>
         : rootFazioni.map(f => <FazioneCard key={f.id} fazione={f} onOpen={onOpenFazione} />)
       }
       {showModal && (
-        <FazioneModal onSave={async (data) => { await addFazione(data); setShowModal(false); showToast('✓ Fazione creata'); }} onClose={() => setShowModal(false)} />
+        <FazioneModal
+          onSave={async (data) => { await addFazione(data); setShowModal(false); showToast(t('fazv.toast_created')); }}
+          onClose={() => setShowModal(false)}
+        />
       )}
     </div>
   );

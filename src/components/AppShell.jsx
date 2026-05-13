@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useWorld } from '../hooks/useWorld';
 import Sidebar from './Sidebar';
@@ -18,21 +19,28 @@ import Toast from './Toast';
 import GlobalSearch from './GlobalSearch';
 
 const VIEWS = [
-  { id: 'world',       label: '🌍 Mondo',       component: WorldView },
-  { id: 'timeline',    label: '⏳ Timeline',     component: TimelineView },
-  { id: 'mappa',       label: '🗺 Mappa',        component: MapView },
-  { id: 'fazioni',     label: '⚔ Fazioni',      component: FazioniView },
-  { id: 'magia',       label: '✨ Magia',        component: MagiaView },
-  { id: 'arcs',        label: '📖 Archi',        component: ArcsView },
-  { id: 'connections', label: '🕸 Connessioni',  component: ConnectionsView },
-  { id: 'analisi',     label: '🔍 Analisi',      component: AnalisiView },
-  { id: 'testi',       label: '📄 Testi',         component: TestiView },
-  { id: 'editor',      label: '✍ Editor',        component: EditorView },
+  { id: 'world',       icon: '🌍', labelKey: 'nav.world',       component: WorldView },
+  { id: 'timeline',    icon: '⏳', labelKey: 'nav.timeline',    component: TimelineView },
+  { id: 'mappa',       icon: '🗺', labelKey: 'nav.map',         component: MapView },
+  { id: 'fazioni',     icon: '⚔', labelKey: 'nav.factions',    component: FazioniView },
+  { id: 'magia',       icon: '✨', labelKey: 'nav.magic',       component: MagiaView },
+  { id: 'arcs',        icon: '📖', labelKey: 'nav.arcs',        component: ArcsView },
+  { id: 'connections', icon: '🕸', labelKey: 'nav.connections', component: ConnectionsView },
+  { id: 'analisi',     icon: '🔍', labelKey: 'nav.analysis',    component: AnalisiView },
+  { id: 'testi',       icon: '📄', labelKey: 'nav.texts',       component: TestiView },
+  { id: 'editor',      icon: '✍', labelKey: 'nav.editor',      component: EditorView },
 ];
 
 export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
+  const { t, i18n } = useTranslation();
   const { signOut } = useAuth();
   const { loading } = useWorld();
+
+  const toggleLang = () => {
+    const next = i18n.language === 'it' ? 'en' : 'it';
+    i18n.changeLanguage(next);
+    localStorage.setItem('nexar-lang', next);
+  };
 
   const [curView,     setCurView]     = useState('world');
   const [preloadText, setPreloadText] = useState(null); // testo da caricare in Analisi
@@ -71,16 +79,19 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
           {VIEWS.map(v => (
             <button key={v.id} className={curView === v.id ? 'active' : ''}
               onClick={() => { setCurView(v.id); setSidebarOpen(false); }}>
-              {v.label}
+              {v.icon} {t(v.labelKey)}
             </button>
           ))}
         </nav>
         <GlobalSearch onOpen={openPanel} />
         <div className="header-acts">
-          <button className="btn-sm" onClick={() => setCatModal(true)}>⚙ Categorie</button>
-          <button className="btn-sm" onClick={onChangeWorld}>🌍 {worldName || 'Mondo'}</button>
+          <button className="btn-sm" onClick={toggleLang} title="Change language">
+            {i18n.language === 'it' ? '🇬🇧 EN' : '🇮🇹 IT'}
+          </button>
+          <button className="btn-sm" onClick={() => setCatModal(true)}>{t('header.categories_btn')}</button>
+          <button className="btn-sm" onClick={onChangeWorld}>🌍 {worldName || t('nav.world')}</button>
           <img src={user.photoURL} alt={user.displayName} className="user-avatar"
-            title={`${user.displayName} — clicca per uscire`} onClick={signOut} style={{ cursor: 'pointer' }} />
+            title={t('header.user_tooltip', { name: user.displayName })} onClick={signOut} style={{ cursor: 'pointer' }} />
         </div>
       </header>
 
@@ -96,7 +107,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
       <div className="app-inner">
         <main className="main">
           {loading ? (
-            <div className="view-loading"><span className="spin">✨</span> Caricamento dati…</div>
+            <div className="view-loading"><span className="spin">✨</span> {t('header.loading')}</div>
           ) : (
             <ActiveView
               onOpenElement={(id) => openPanel('element', id)}
@@ -125,7 +136,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
           {VIEWS.map(v => (
             <button key={v.id} className={curView === v.id ? 'active' : ''}
               onClick={() => { setCurView(v.id); setPanel(null); }}>
-              {v.label}
+              {v.icon} {t(v.labelKey)}
             </button>
           ))}
         </div>

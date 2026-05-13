@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import ElementModal from '../components/ElementModal';
 
@@ -19,6 +20,7 @@ const RANGE_COLOR = '#d4956a';
 
 // ── Card evento puntale ───────────────────────────────────────────────────
 function EventCard({ ev, side, elements, arcs, cats, expanded, toggleExpand, onOpenElement }) {
+  const { t } = useTranslation();
   const isOpen    = expanded.has(ev.id);
   const imp       = ev.importance || 'minore';
   const color     = IMP_COLOR[imp] || '#b88fc4';
@@ -66,7 +68,7 @@ function EventCard({ ev, side, elements, arcs, cats, expanded, toggleExpand, onO
           )}
           <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
             <button className="btn-g" style={{ fontSize: 11 }} onClick={e => { e.stopPropagation(); onOpenElement(ev.id); }}>
-              Apri scheda →
+              {t('dp.open_card')}
             </button>
           </div>
         </div>
@@ -75,8 +77,9 @@ function EventCard({ ev, side, elements, arcs, cats, expanded, toggleExpand, onO
   );
 }
 
-// ── Contenuto interno barra range — testo orizzontale, larghezza adattiva ──
+// ── Contenuto interno barra range ─────────────────────────────────────────
 function RangeBarInner({ ev, h, color, isOpen, toggleExpand, onOpenElement, popupLeft, popupRight }) {
+  const { t } = useTranslation();
   return (
     <>
       <div onClick={() => toggleExpand(ev.id)}
@@ -102,7 +105,7 @@ function RangeBarInner({ ev, h, color, isOpen, toggleExpand, onOpenElement, popu
           {ev.desc && <div style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 8 }}>{ev.desc}</div>}
           <div style={{ display: 'flex', gap: 6 }}>
             <button className="btn-g" style={{ fontSize: 11 }} onClick={() => toggleExpand(ev.id)}>✕</button>
-            <button className="btn-g" style={{ fontSize: 11 }} onClick={e => { e.stopPropagation(); onOpenElement(ev.id); }}>Apri →</button>
+            <button className="btn-g" style={{ fontSize: 11 }} onClick={e => { e.stopPropagation(); onOpenElement(ev.id); }}>{t('tl.open_short')}</button>
           </div>
         </div>
       )}
@@ -111,16 +114,12 @@ function RangeBarInner({ ev, h, color, isOpen, toggleExpand, onOpenElement, popu
 }
 
 // ── TimelineCanvas ────────────────────────────────────────────────────────
-// Layout: la linea verticale è la spina dorsale.
-// - Eventi puntali: a lato della linea (destra in singola, sx/dx in doppia)
-// - Eventi range: CENTRATI sulla linea, la linea si interrompe durante la barra
 function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getSide, useSplit, onOpenElement, cats }) {
-  const SLOT_H      = 90;   // px minimi tra eventi puntali
+  const SLOT_H      = 90;
   const MIN_BAR_H   = 50;
-  const CHARS_PER_LINE = 30; // max caratteri per riga prima dell'a capo
-  const CH_PX       = 7.5;  // pixel per carattere (font ~13px)
-  const PAD         = 20;   // padding orizzontale interno
-  // Larghezza barra: adattiva al testo, min 80, max 200
+  const CHARS_PER_LINE = 30;
+  const CH_PX       = 7.5;
+  const PAD         = 20;
   const getRangeW = (name) => {
     const lines = Math.ceil(name.length / CHARS_PER_LINE);
     const longestLine = Math.min(name.length, CHARS_PER_LINE);
@@ -133,7 +132,6 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
   const pointEvs  = filtered.filter(e => !(e.eventType === 'range' && e.dateEnd));
   const pointsSorted = [...pointEvs].sort((a, b) => (parseDate(a.date) ?? 0) - (parseDate(b.date) ?? 0));
 
-  // Scala temporale unificata
   const allDates = [
     ...pointsSorted.map(e => parseDate(e.date)),
     ...rangeEvs.map(e => parseDate(e.date)),
@@ -145,7 +143,6 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
   const maxDate  = Math.max(...allDates);
   const dateSpan = maxDate - minDate || 1;
 
-  // Altezza canvas basata sugli slot puntali
   const minH = Math.max(pointsSorted.length * SLOT_H + 200, rangeEvs.length > 0 ? 400 : 200);
 
   const toPx = (d) => {
@@ -153,7 +150,6 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
     return Math.round(((d - minDate) / dateSpan) * (minH - 80)) + 30;
   };
 
-  // Posizioni Y eventi puntali con spaziatura minima
   const pointPositions = [];
   let lastY = -SLOT_H;
   for (const ev of pointsSorted) {
@@ -164,7 +160,6 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
   }
   const totalH = Math.max(minH, (pointPositions[pointPositions.length - 1]?.y ?? 0) + 150);
 
-  // Barre range con posizione Y e larghezza adattiva
   const rangeLayout = rangeEvs.map(ev => {
     const yStart = toPx(parseDate(ev.date));
     const yEnd   = Math.max(toPx(parseDate(ev.dateEnd)), yStart + MIN_BAR_H);
@@ -172,8 +167,6 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
     return { ev, yStart, yEnd, w };
   });
 
-  // Costruisci segmenti di linea: le barre range "tagliano" la linea
-  // Raccoglie tutti gli intervalli "bloccati" dalle barre
   const blocked = rangeLayout.map(r => ({ from: r.yStart, to: r.yEnd }));
   const buildLineSegments = (totalH) => {
     if (!blocked.length) return [{ from: 0, to: totalH }];
@@ -190,23 +183,17 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
 
   // ── Vista singola ──
   if (!useSplit) {
-    // La linea è a sinistra, la barra range è centrata su di essa
-    // Gli eventi puntali stanno a destra della linea
     const maxRangeW = rangeLayout.length > 0 ? Math.max(...rangeLayout.map(r => r.w)) : 0;
-    const LINE_X    = maxRangeW / 2 + 4; // linea centrata sulla barra più larga
-    const BAR_LEFT  = 4;               // barra da sx
-    const CARD_LEFT = maxRangeW + 32;  // card ben a destra della barra più larga
+    const LINE_X    = maxRangeW / 2 + 4;
+    const BAR_LEFT  = 4;
+    const CARD_LEFT = maxRangeW + 32;
     const lineSegs  = buildLineSegments(totalH);
 
     return (
       <div style={{ position: 'relative', minHeight: totalH, paddingLeft: 0, boxSizing: 'border-box' }}>
-
-        {/* Segmenti linea */}
         {lineSegs.map((seg, i) => (
           <div key={i} style={{ position: 'absolute', left: LINE_X, top: seg.from, width: 2, height: seg.to - seg.from, background: 'var(--border-light)' }} />
         ))}
-
-        {/* Barre range */}
         {rangeLayout.map(({ ev, yStart, yEnd, w }) => {
           const h      = yEnd - yStart;
           const imp    = ev.importance || 'minore';
@@ -220,8 +207,6 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
             </div>
           );
         })}
-
-        {/* Eventi puntali */}
         {pointPositions.map(({ ev, y }) => {
           const imp   = ev.importance || 'minore';
           const color = IMP_COLOR[imp] || '#b88fc4';
@@ -238,13 +223,10 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
   }
 
   // ── Vista doppia ──
-  // Linea centrale al 50%, barre centrate su di essa
   const lineSegs = buildLineSegments(totalH);
 
   return (
     <div style={{ position: 'relative', minHeight: totalH }}>
-
-      {/* Segmenti linea centrale */}
       {lineSegs.map((seg, i) => (
         <div key={i} style={{
           position: 'absolute', left: '50%', top: seg.from,
@@ -252,8 +234,6 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
           background: 'var(--border-light)', transform: 'translateX(-50%)',
         }} />
       ))}
-
-      {/* Barre range centrate sulla linea */}
       {rangeLayout.map(({ ev, yStart, yEnd, w }) => {
         const h      = yEnd - yStart;
         const imp    = ev.importance || 'minore';
@@ -267,21 +247,17 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
           </div>
         );
       })}
-
-      {/* Punti sulla linea per eventi puntali */}
       {pointPositions.map(({ ev, y }) => {
         const side       = getSide(ev);
         const isLeft     = side === 'left';
         const isCenter   = side === 'center';
         const imp        = ev.importance || 'minore';
         const color      = IMP_COLOR[imp] || '#b88fc4';
-        // Scarta la barra se la card (y … y+SLOT_H) si sovrappone verticalmente
         const activeRange  = rangeLayout.find(r => y + SLOT_H > r.yStart && y < r.yEnd);
         const hasRangeHere = !!activeRange;
         const rw           = activeRange?.w ?? 0;
         const halfGap      = hasRangeHere ? rw / 2 + 20 : 20;
         const isExpanded   = expanded.has(ev.id);
-        // Pallino nascosto solo se il suo y cade dentro la barra
         const showDot = !rangeLayout.some(r => y + 14 >= r.yStart && y + 14 <= r.yEnd);
         return (
           <Fragment key={ev.id}>
@@ -309,6 +285,7 @@ function TimelineCanvas({ filtered, elements, arcs, expanded, toggleExpand, getS
 
 // ── Componente principale ─────────────────────────────────────────────────
 export default function TimelineView({ onOpenElement, showToast }) {
+  const { t } = useTranslation();
   const { elements, arcs, fazioni, allCats, addEl } = useWorld();
   const cats = allCats();
 
@@ -360,82 +337,82 @@ export default function TimelineView({ onOpenElement, showToast }) {
     <div className="view">
       <div className="view-hd">
         <div className="view-title">Time<span>line</span></div>
-        <button className="btn-p" onClick={() => setShowModal(true)}>+ Nuovo evento</button>
+        <button className="btn-p" onClick={() => setShowModal(true)}>{t('tl.new_btn')}</button>
       </div>
 
-      {/* Filtri */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '5px 12px' }}>
-            <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Da</label>
-            <input type="text" placeholder="Data inizio…" value={fromFilter} onChange={e => setFromFilter(e.target.value)} style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: 120 }} />
+            <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{t('tl.from_lbl')}</label>
+            <input type="text" placeholder={t('tl.from_ph')} value={fromFilter} onChange={e => setFromFilter(e.target.value)} style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: 120 }} />
           </div>
           <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>→</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '5px 12px' }}>
-            <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>A</label>
-            <input type="text" placeholder="Data fine…" value={toFilter} onChange={e => setToFilter(e.target.value)} style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: 120 }} />
+            <label style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.1em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{t('tl.to_lbl')}</label>
+            <input type="text" placeholder={t('tl.to_ph')} value={toFilter} onChange={e => setToFilter(e.target.value)} style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: 120 }} />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
           <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-            <option value="">Tutti i tipi</option>
-            <option value="point">◆ Puntuale</option>
-            <option value="range">▬ Con durata</option>
+            <option value="">{t('tl.filter_all_types')}</option>
+            <option value="point">{t('element.ev_point')}</option>
+            <option value="range">{t('element.ev_range')}</option>
           </select>
           <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }} value={impFilter} onChange={e => setImpFilter(e.target.value)}>
-            <option value="">Qualsiasi importanza</option>
-            <option value="principale">⭐⭐⭐ Principale</option>
-            <option value="primario">⭐⭐ Primario</option>
-            <option value="secondario">⭐ Secondario</option>
-            <option value="minore">· Minore</option> 
+            <option value="">{t('wv.filter_any_imp')}</option>
+            <option value="principale">⭐⭐⭐ {t('importance.principale')}</option>
+            <option value="primario">⭐⭐ {t('importance.primario')}</option>
+            <option value="secondario">⭐ {t('importance.secondario')}</option>
+            <option value="minore">· {t('importance.minore')}</option>
           </select>
           <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }} value={catFilter} onChange={e => setCatFilter(e.target.value)}>
-            <option value="">Tutti i lati</option>
+            <option value="">{t('tl.filter_all_sides')}</option>
             {cats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
           {arcs.length > 0 && (
             <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }} value={arcFilter} onChange={e => setArcFilter(e.target.value)}>
-              <option value="">Tutti gli archi</option>
+              <option value="">{t('wv.filter_all_arcs')}</option>
               {arcs.map(a => <option key={a.id} value={a.id}>📖 {a.name}</option>)}
             </select>
           )}
           {fazioni.length > 0 && (
             <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 13, padding: '5px 10px' }} value={fazFilter} onChange={e => setFazFilter(e.target.value)}>
-              <option value="">Tutte le fazioni</option>
+              <option value="">{t('wv.filter_all_faz')}</option>
               {fazioni.map(f => <option key={f.id} value={f.id}>⚔ {f.name}</option>)}
             </select>
           )}
-          {hasFilters && <button className="btn-g" style={{ fontSize: 12 }} onClick={resetFilters}>✕ Azzera filtri</button>}
+          {hasFilters && <button className="btn-g" style={{ fontSize: 12 }} onClick={resetFilters}>{t('wv.reset_filters')}</button>}
         </div>
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Lati:</span>
+          <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{t('tl.sides_lbl')}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>◀ Sx</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('tl.side_left')}</span>
             <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 12, padding: '3px 8px' }} value={leftCat} onChange={e => setLeftCat(e.target.value)}>
-              <option value="">— nessuna —</option>
+              <option value="">{t('common.none_f')}</option>
               {cats.filter(c => c.id !== rightCat).map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Dx ▶</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('tl.side_right')}</span>
             <select className="fs" style={{ margin: 0, width: 'auto', fontSize: 12, padding: '3px 8px' }} value={rightCat} onChange={e => setRightCat(e.target.value)}>
-              <option value="">— nessuna —</option>
+              <option value="">{t('common.none_f')}</option>
               {cats.filter(c => c.id !== leftCat).map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
             </select>
           </div>
-          {(leftCat || rightCat) && <button className="btn-g" style={{ fontSize: 11 }} onClick={() => { setLeftCat(''); setRightCat(''); }}>✕ Reset</button>}
+          {(leftCat || rightCat) && <button className="btn-g" style={{ fontSize: 11 }} onClick={() => { setLeftCat(''); setRightCat(''); }}>{t('tl.reset_sides')}</button>}
         </div>
         <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-          {filtered.length} eventi{hasFilters ? ' filtrati' : ''} su {allEvents.length} totali
+          {hasFilters
+            ? t('tl.count_filtered', { count: filtered.length, total: allEvents.length })
+            : t('tl.count', { count: filtered.length, total: allEvents.length })}
         </div>
       </div>
 
-      {/* Timeline */}
       {filtered.length === 0 ? (
         <div className="empty">
           <div className="empty-icon">⏳</div>
-          <div className="empty-title">Nessun evento</div>
-          <div className="empty-sub">{hasFilters ? 'Nessun evento corrisponde ai filtri' : 'Crea il primo evento della timeline'}</div>
+          <div className="empty-title">{t('tl.empty_title')}</div>
+          <div className="empty-sub">{hasFilters ? t('tl.empty_filtered') : t('tl.empty_sub')}</div>
         </div>
       ) : (
         <TimelineCanvas
@@ -448,7 +425,7 @@ export default function TimelineView({ onOpenElement, showToast }) {
 
       {showModal && (
         <ElementModal defaultCat="event"
-          onSave={async (data) => { await addEl(data); setShowModal(false); showToast('✓ Evento creato'); }}
+          onSave={async (data) => { await addEl(data); setShowModal(false); showToast(t('tl.toast_created')); }}
           onClose={() => setShowModal(false)} />
       )}
     </div>

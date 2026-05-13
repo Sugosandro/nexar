@@ -1,5 +1,6 @@
 // src/views/EditorView.jsx
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useWorld } from '../hooks/useWorld';
@@ -17,10 +18,10 @@ const countWords = (html) => {
 };
 
 // ── Divide testo plain in capitoli (per import) ───────────────────────────
-const splitIntoChapters = (text, customSep = '') => {
+const splitIntoChapters = (text, customSep = '', defaultTitle = 'Start', getSectionTitle = (n) => `Section ${n}`) => {
   const lines = text.split('\n');
   const chapters = [];
-  let current = { title: 'Inizio', lines: [] };
+  let current = { title: defaultTitle, lines: [] };
   const sepRegex = customSep.trim()
     ? new RegExp('^' + customSep.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(.*)$', 'i')
     : null;
@@ -34,7 +35,7 @@ const splitIntoChapters = (text, customSep = '') => {
     );
     if ((isCustom || isAuto) && current.lines.length > 5) {
       chapters.push({ ...current, text: current.lines.join('\n').trim() });
-      const title = line.replace(/^#{1,3}\s/, '').trim() || `Sezione ${chapters.length + 1}`;
+      const title = line.replace(/^#{1,3}\s/, '').trim() || getSectionTitle(chapters.length + 1);
       current = { title, lines: [] };
     } else {
       current.lines.push(line);
@@ -97,6 +98,7 @@ function Toolbar({ editor }) {
 
 // ── Componente principale ─────────────────────────────────────────────────
 export default function EditorView({ onOpenElement, showToast }) {
+  const { t, i18n } = useTranslation();
   const { uid, wid, elements, allCats } = useWorld();
   const cats = allCats();
 
@@ -196,23 +198,23 @@ export default function EditorView({ onOpenElement, showToast }) {
   const handleNewChapter = async () => {
     const order = chapters.length;
     const id = await addChapter(uid, wid, {
-      title: `Capitolo ${order + 1}`,
+      title: t('ed.chapter_n', { n: order + 1 }),
       content: '',
       order,
     });
     setActiveId(id);
-    showToast('✓ Capitolo creato');
+    showToast(t('ed.toast_created'));
   };
 
   // ── Elimina capitolo ──
   const handleDelete = async (cid) => {
-    if (!window.confirm('Eliminare questo capitolo? Il contenuto verrà perso.')) return;
+    if (!window.confirm(t('ed.delete_confirm'))) return;
     await deleteChapter(uid, wid, cid);
     if (activeId === cid) {
       const remaining = chapters.filter(c => c.id !== cid);
       setActiveId(remaining.length > 0 ? remaining[0].id : null);
     }
-    showToast('🗑 Capitolo eliminato');
+    showToast(t('ed.toast_deleted'));
   };
 
   // ── Rinomina capitolo ──
@@ -247,7 +249,7 @@ export default function EditorView({ onOpenElement, showToast }) {
     if (!activeId) return;
     await updateChapter(uid, wid, activeId, { notes: chapterNote });
     setNotesSaved(true);
-    showToast('✓ Note salvate');
+    showToast(t('ed.toast_notes'));
   };
 
   // ── Import da Testi ──
@@ -255,7 +257,7 @@ export default function EditorView({ onOpenElement, showToast }) {
     setImportingId(textMeta.id);
     try {
       const content = await loadTextContent(uid, wid, textMeta.id);
-      const parts = splitIntoChapters(content, textMeta.customSep || '');
+      const parts = splitIntoChapters(content, textMeta.customSep || '', t('ed.default_title'), (n) => t('ed.section_n', { n }));
       const startOrder = chapters.length;
       for (let i = 0; i < parts.length; i++) {
         await addChapter(uid, wid, {
@@ -265,9 +267,9 @@ export default function EditorView({ onOpenElement, showToast }) {
         });
       }
       setShowImport(false);
-      showToast(`✓ Importati ${parts.length} capitoli`);
+      showToast(t('ed.toast_imported', { count: parts.length }));
     } catch (e) {
-      showToast('⚠ Errore durante l\'importazione');
+      showToast(t('ed.toast_import_error'));
       console.error(e);
     }
     setImportingId(null);
@@ -303,22 +305,22 @@ export default function EditorView({ onOpenElement, showToast }) {
         <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: 'var(--text)' }}>
-              Capitoli
+              {t('ed.chapters_lbl')}
             </div>
             <button className="btn-p" style={{ fontSize: 11, padding: '3px 8px' }} onClick={handleNewChapter}>
               +
             </button>
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {chapters.length} cap. · {totalWords.toLocaleString()} parole
+            {t('ed.stats', { chapters: chapters.length, words: totalWords.toLocaleString(i18n.language) })}
           </div>
         </div>
 
         {/* Lista capitoli */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
           {chapters.length === 0 ? (
-            <div style={{ padding: '20px 14px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
-              Nessun capitolo.<br />Creane uno o importa da Testi.
+            <div style={{ padding: '20px 14px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', whiteSpace: 'pre-line' }}>
+              {t('ed.no_chapters')}
             </div>
           ) : chapters.map(ch => (
             <div key={ch.id}
@@ -361,21 +363,21 @@ export default function EditorView({ onOpenElement, showToast }) {
         <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <button className="btn-g" style={{ width: '100%', fontSize: 12 }}
             onClick={() => setShowImport(s => !s)}>
-            {showImport ? '✕ Chiudi' : '📥 Importa da Testi'}
+            {showImport ? `✕ ${t('common.close')}` : t('ed.import_btn')}
           </button>
           {showImport && (
             <div style={{ marginTop: 8, maxHeight: 200, overflowY: 'auto' }}>
               {texts.length === 0
-                ? <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>Nessun testo salvato</div>
-                : texts.map(t => (
-                  <div key={t.id}
-                    onClick={() => handleImport(t)}
-                    style={{ padding: '7px 8px', fontSize: 12, cursor: importingId === t.id ? 'wait' : 'pointer', borderRadius: 6, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 6 }}
+                ? <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>{t('ed.no_texts')}</div>
+                : texts.map(tx => (
+                  <div key={tx.id}
+                    onClick={() => handleImport(tx)}
+                    style={{ padding: '7px 8px', fontSize: 12, cursor: importingId === tx.id ? 'wait' : 'pointer', borderRadius: 6, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 6 }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
                     <span>📄</span>
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                    {importingId === t.id && <span style={{ fontSize: 10 }}>⏳</span>}
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.name}</span>
+                    {importingId === tx.id && <span style={{ fontSize: 10 }}>⏳</span>}
                   </div>
                 ))
               }
@@ -402,13 +404,13 @@ export default function EditorView({ onOpenElement, showToast }) {
                 onChange={e => handleStatusChange(activeId, e.target.value)}
                 className="fs"
                 style={{ margin: 0, fontSize: 12, padding: '3px 8px', width: 'auto' }}>
-                <option value="draft">✏ Bozza</option>
-                <option value="wip">🔵 In sviluppo</option>
-                <option value="done">✅ Definitivo</option>
+                <option value="draft">{t('status.draft')}</option>
+                <option value="wip">{t('status.wip')}</option>
+                <option value="done">{t('status.done')}</option>
               </select>
               {/* Salva status */}
               <span style={{ fontSize: 11, color: saveStatus === 'saved' ? 'var(--place)' : saveStatus === 'saving' ? 'var(--gold)' : 'var(--text-muted)', flexShrink: 0 }}>
-                {saveStatus === 'saved' ? '✓ Salvato' : saveStatus === 'saving' ? '⏳ Salvataggio…' : '● Non salvato'}
+                {saveStatus === 'saved' ? t('ed.saved') : saveStatus === 'saving' ? t('ed.saving') : t('ed.unsaved')}
               </span>
               {/* Export */}
               <button className="btn-g" style={{ fontSize: 11, padding: '3px 8px', flexShrink: 0 }} onClick={handleExport}>
@@ -435,17 +437,17 @@ export default function EditorView({ onOpenElement, showToast }) {
 
             {/* Word count footer */}
             <div style={{ padding: '6px 20px', borderTop: '1px solid var(--border)', background: 'var(--surface)', fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 16, flexShrink: 0 }}>
-              <span>{activeChapter.wordCount || 0} parole in questo capitolo</span>
-              <span>{totalWords.toLocaleString()} parole totali</span>
-              <span style={{ marginLeft: 'auto', fontSize: 10 }}>Ctrl+S per salvare</span>
+              <span>{t('ed.words_chapter', { count: activeChapter.wordCount || 0 })}</span>
+              <span>{t('ed.words_total', { count: totalWords.toLocaleString(i18n.language) })}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 10 }}>{t('ed.shortcut_save')}</span>
             </div>
           </>
         ) : (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 32 }}>✍</div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--text)' }}>Nessun capitolo selezionato</div>
-            <div style={{ fontSize: 13 }}>Crea un nuovo capitolo o importa da Testi</div>
-            <button className="btn-p" onClick={handleNewChapter}>+ Nuovo capitolo</button>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: 'var(--text)' }}>{t('ed.no_selection_title')}</div>
+            <div style={{ fontSize: 13 }}>{t('ed.no_selection_sub')}</div>
+            <button className="btn-p" onClick={handleNewChapter}>{t('ed.new_chapter_btn')}</button>
           </div>
         )}
       </div>
@@ -459,7 +461,7 @@ export default function EditorView({ onOpenElement, showToast }) {
         }}>
           <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)' }}>
-              Pannello capitolo
+              {t('ed.panel_title')}
             </div>
           </div>
 
@@ -467,18 +469,18 @@ export default function EditorView({ onOpenElement, showToast }) {
             {/* Note capitolo */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 6 }}>
-                Note
+                {t('ed.notes_lbl')}
               </div>
               <textarea
                 value={chapterNote}
                 onChange={e => { setChapterNote(e.target.value); setNotesSaved(false); }}
                 onBlur={handleSaveNote}
-                placeholder="Note su questo capitolo…"
+                placeholder={t('ed.notes_ph')}
                 style={{ width: '100%', minHeight: 100, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '8px 10px', outline: 'none', resize: 'vertical', lineHeight: 1.6 }}
               />
               {!notesSaved && (
                 <button className="btn-g" style={{ fontSize: 11, marginTop: 4 }} onClick={handleSaveNote}>
-                  Salva note
+                  {t('ed.save_notes')}
                 </button>
               )}
             </div>
@@ -486,10 +488,10 @@ export default function EditorView({ onOpenElement, showToast }) {
             {/* Elementi del mondo collegati */}
             <div>
               <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                Elementi mondo
+                {t('ed.elements_lbl')}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 8 }}>
-                Elementi menzionati nel capitolo:
+                {t('ed.elements_sub')}
               </div>
               {/* Ricerca elementi da collegare */}
               <ChapterElementLinker
@@ -517,6 +519,7 @@ export default function EditorView({ onOpenElement, showToast }) {
 
 // ── Sotto-componente: collegamento elementi al capitolo ───────────────────
 function ChapterElementLinker({ chapter, elements, cats, onLink, onUnlink, onOpen }) {
+  const { t } = useTranslation();
   const [query,  setQuery]  = useState('');
   const [open,   setOpen]   = useState(false);
   const inputRef = useRef(null);
@@ -548,7 +551,7 @@ function ChapterElementLinker({ chapter, elements, cats, onLink, onUnlink, onOpe
 
       {/* Input ricerca */}
       <div style={{ position: 'relative', marginTop: 6 }}>
-        <input ref={inputRef} type="text" placeholder="Collega elemento…"
+        <input ref={inputRef} type="text" placeholder={t('ed.link_ph')}
           value={query} onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 200)}
           style={{ width: '100%', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 9px', outline: 'none' }} />

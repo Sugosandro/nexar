@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { saveGraphPositions, getGraphPositions } from '../firebase/db';
 
@@ -81,6 +82,7 @@ function forceLayout(nodes, edges, width, height) {
 }
 
 export default function ConnectionsView({ onOpenElement, onOpenFazione, onOpenArc }) {
+  const { t } = useTranslation();
   const { elements, arcs, fazioni, allCats, uid, wid } = useWorld();
   const svgRef = useRef(null);
   const lastTouchDist = useRef(null);
@@ -102,8 +104,8 @@ export default function ConnectionsView({ onOpenElement, onOpenFazione, onOpenAr
   const catFilters = cats.filter(c => usedCatIds.includes(c.id))
     .map(c => ({ key: `el-${c.id}`, label: `${c.icon} ${c.name}`, color: c.color }));
   const extraFilters = [
-    ...(arcs.length    > 0 ? [{ key: 'arc',    label: '📖 Archi',   color: '#e8a0a8' }] : []),
-    ...(fazioni.length > 0 ? [{ key: 'fazione', label: '⚔ Fazioni', color: '#f0c060' }] : []),
+    ...(arcs.length    > 0 ? [{ key: 'arc',    label: `📖 ${t('nav.arcs')}`,     color: '#e8a0a8' }] : []),
+    ...(fazioni.length > 0 ? [{ key: 'fazione', label: `⚔ ${t('nav.factions')}`, color: '#f0c060' }] : []),
   ];
   const allFilterKeys = [...catFilters.map(f => f.key), ...extraFilters.map(f => f.key)];
   const [activeFilters, setActiveFilters] = useState(() => new Set(allFilterKeys));
@@ -290,15 +292,15 @@ const handleSvgPointerMove = useCallback((e) => {
 
   if (elements.length === 0) return (
     <div className="view">
-      <div className="view-hd"><div className="view-title">🕸 <span>Connessioni</span></div></div>
-      <div className="empty"><div className="empty-icon">🕸</div><div className="empty-title">Nessun elemento</div><div className="empty-sub">Aggiungi elementi per visualizzare le connessioni</div></div>
+      <div className="view-hd"><div className="view-title">🕸 <span>{t('nav.connections')}</span></div></div>
+      <div className="empty"><div className="empty-icon">🕸</div><div className="empty-title">{t('conn.empty_title')}</div><div className="empty-sub">{t('conn.empty_sub')}</div></div>
     </div>
   );
 
   return (
     <div className="view" style={{ padding: '20px 24px', height: 'calc(100vh - 54px)', display: 'flex', flexDirection: 'column' }}>
       <div className="view-hd" style={{ marginBottom: 10, flexShrink: 0 }}>
-        <div className="view-title">🕸 <span>Connessioni</span></div>
+        <div className="view-title">🕸 <span>{t('nav.connections')}</span></div>
       </div>
 
       {/* Filtri categoria */}
@@ -320,7 +322,7 @@ const handleSvgPointerMove = useCallback((e) => {
         <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 2px' }} />
         <button onClick={() => setActiveFilters(new Set(allFilterKeys))}
   style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer' }}>
-  Tutti
+  {t('conn.all_btn')}
 </button>
 
 <button onClick={async () => {
@@ -332,13 +334,13 @@ const handleSvgPointerMove = useCallback((e) => {
   if (uid && wid) await saveGraphPositions(uid, wid, newPos);
 }}
   style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer' }}>
-  ↺ Reset
+  {t('conn.reset_btn')}
 </button>
       </div>
 
       {/* Focus elemento */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Focus:</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>{t('conn.focus_lbl')}</span>
         {[...focusEls].map(elId => {
           const el = elements.find(e => e.id === elId);
           if (!el) return null;
@@ -351,7 +353,7 @@ const handleSvgPointerMove = useCallback((e) => {
           );
         })}
         <div style={{ position: 'relative' }}>
-          <input type="text" placeholder="Isola elemento…" value={focusQuery}
+          <input type="text" placeholder={t('conn.focus_ph')} value={focusQuery}
             onChange={e => { setFocusQuery(e.target.value); setFocusOpen(true); }}
             onFocus={() => setFocusOpen(true)}
             onBlur={() => setTimeout(() => setFocusOpen(false), 150)}
@@ -373,7 +375,7 @@ const handleSvgPointerMove = useCallback((e) => {
         {focusEls.size > 0 && (
           <button onClick={() => setFocusEls(new Set())}
             style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer' }}>
-            ✕ Rimuovi focus
+            {t('conn.remove_focus')}
           </button>
         )}
       </div>
@@ -490,7 +492,7 @@ const handleSvgPointerMove = useCallback((e) => {
               <text x={10} y={18}
                 style={{ fontSize: 9, fill: selected.color, fontFamily: "'Crimson Pro', serif", userSelect: 'none' }}>
                 {selected.type === 'element' ? (cats.find(c => c.id === el.cat)?.name || '')
-                  : selected.type === 'arc' ? 'Arco Narrativo' : 'Fazione'}
+                  : selected.type === 'arc' ? t('conn.arc_label') : t('conn.faz_label')}
               </text>
               <text x={10} y={36}
                 style={{ fontSize: 14, fill: 'var(--text)', fontFamily: "'Playfair Display', serif", userSelect: 'none' }}>
@@ -516,7 +518,7 @@ const handleSvgPointerMove = useCallback((e) => {
                   fill={selected.color + '22'} stroke={selected.color + '55'} strokeWidth={1} />
                 <text x={popW / 2} y={popH - 15} textAnchor="middle" dominantBaseline="middle"
                   style={{ fontSize: 11, fill: selected.color, fontFamily: "'Crimson Pro', serif", userSelect: 'none' }}>
-                  Apri scheda completa →
+                  {t('conn.open_card')}
                 </text>
               </g>
             </g>
@@ -525,7 +527,7 @@ const handleSvgPointerMove = useCallback((e) => {
       </svg>
 
       <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8, textAlign: 'center', flexShrink: 0 }}>
-        Trascina per spostare • Scroll/pinch per zoom • Clicca per aprire
+        {t('conn.hint')}
       </p>
     </div>
   );

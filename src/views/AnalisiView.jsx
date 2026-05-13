@@ -25,6 +25,7 @@ const TIPO_META = {
   modifica_fazione:   { label: 'Modifica fazione',    color: '#f5bec5', bg: '#3c1820', icon: '⚔' },
   modifica_magia:     { label: 'Modifica magia',      color: '#a0d0c0', bg: '#1a3830', icon: '✨' },
   modifica_arco:      { label: 'Modifica arco',       color: '#d4a84c', bg: '#3a2a08', icon: '📖' },
+  aggiorna_evento:    { label: 'Aggiorna evento',     color: '#7ab8d4', bg: '#1a3040', icon: '📅' },
 };
 
 // ── Divide testo in capitoli ───────────────────────────────────────────────
@@ -149,26 +150,39 @@ TESTO DA ANALIZZARE — ${chapterTitle} (${chapterIndex+1}/${totalChapters}):
 ${chapterText}
 
 Analizza questo capitolo e identifica:
-1. INCONGRUENZE: fatti nel testo che contraddicono la storia — nomi sbagliati, relazioni impossibili, continuity errors, poteri usati in modo incompatibile, equipaggiamento usato da chi non lo possiede,poteri usati in modo incompatibile con le regole del sistema di magia
-2. NUOVI ELEMENTI: personaggi, luoghi, oggetti o eventi menzionati nel testo ma assenti dalla storia
+1. INCONGRUENZE: fatti nel testo che contraddicono la storia — nomi sbagliati, relazioni impossibili, continuity errors, poteri usati in modo incompatibile, equipaggiamento usato da chi non lo possiede
+2. NUOVI ELEMENTI: personaggi, luoghi, oggetti o eventi menzionati nel testo ma assenti dalla storia. Per gli eventi usa sempre "cat":"event" e includi "eventPlace" e "eventEls" se deducibili dal testo
 3. NUOVE CONNESSIONI: relazioni tra elementi esistenti nella storia che emergono dal testo ma non sono registrate
 4. APPROFONDIMENTI: dettagli narrativi rilevanti che arricchirebbero la storia - backstory, motivazioni, descrizioni fisiche, abilità specifiche, date o luoghi storici
+5. AGGIORNA EVENTO: se un evento già presente nella storia appare nel testo con partecipanti o un luogo non ancora registrati, usa "aggiorna_evento" per segnalarlo
 
 IMPORTANTE — sii conciso: "titolo" max 60 caratteri, "descrizione" max 120 caratteri, "desc" nei dati max 100 caratteri. Preferisci qualità a quantità: segnala solo le osservazioni più rilevanti.
 
 Rispondi SOLO con un array JSON valido, nessun testo prima o dopo. Ogni proposta deve avere questa struttura:
 [
   {
-    "tipo": "incongruenza" | "nuovo_elemento" | "nuova_connessione" | "approfondimento" | "nuovo_potere" | "modifica_desc" | "modifica_tag" | "modifica_fazione" | "modifica_magia" | "modifica_arco",
+    "tipo": "incongruenza" | "nuovo_elemento" | "nuova_connessione" | "approfondimento" | "nuovo_potere" | "modifica_desc" | "modifica_tag" | "modifica_fazione" | "modifica_magia" | "modifica_arco" | "aggiorna_evento",
     "titolo": "titolo breve della proposta",
     "descrizione": "spiegazione dettagliata di cosa hai trovato e perché è rilevante",
     "capitolo": "${chapterTitle}",
     "dati": {
-      // Per nuovo_elemento:
-      "cat": "char|place|object|event",
+      // Per nuovo_elemento (cat != event):
+      "cat": "char|place|object",
       "name": "nome elemento",
       "desc": "descrizione suggerita",
       "importance": "principale|primario|secondario|minore",
+      // Per nuovo_elemento con cat = "event":
+      "cat": "event",
+      "name": "nome evento",
+      "desc": "descrizione",
+      "date": "GG/MM/AAAA o solo anno",
+      "importance": "principale|primario|secondario|minore",
+      "eventPlace": "nome del luogo in cui avviene (deve essere un luogo presente in STORIA, oppure ometti)",
+      "eventEls": ["nome personaggio 1", "nome personaggio 2"],
+      // Per aggiorna_evento (evento già presente in STORIA a cui aggiungere partecipanti o luogo):
+      "nome_evento": "nome esatto dell'evento già presente in STORIA",
+      "eventPlace": "nome del luogo (deve essere un luogo presente in STORIA, oppure ometti)",
+      "eventEls": ["nome elemento 1", "nome elemento 2"],
       // Per nuova_connessione / modifica_tag:
       "elemento_a": "nome elemento esistente",
       "elemento_b": "nome elemento esistente",
@@ -345,6 +359,12 @@ function ProposalCard({ proposal, elements, onAccept, onDiscard, onOpenElement }
               <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
                 onClick={() => onAccept(proposal)}>
                 📖 Aggiorna arco
+              </button>
+            )}
+            {proposal.tipo === 'aggiorna_evento' && (
+              <button className="btn-p" style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => onAccept(proposal)}>
+                📅 Aggiorna evento
               </button>
             )}
           </div>
@@ -569,6 +589,45 @@ ${proposal.descrizione}`,
       } else {
         setAcceptModal(proposal);
       }
+    } else if (tipo === 'modifica_fazione') {
+      const faz = fazioni.find(f => f.name.toLowerCase() === (proposal.dati?.nome_fazione || '').toLowerCase());
+      if (!faz) { showToast('⚠ Fazione non trovata: ' + (proposal.dati?.nome_fazione || '?')); return; }
+      setEditForm({
+        proposal, faz,
+        fields: { campo: proposal.dati?.campo || 'desc', nuovo_valore: proposal.dati?.nuovo_valore || proposal.descrizione || '' },
+      });
+    } else if (tipo === 'modifica_magia') {
+      const mag = magie.find(m => m.name.toLowerCase() === (proposal.dati?.nome_magia || '').toLowerCase());
+      if (!mag) { showToast('⚠ Sistema di magia non trovato: ' + (proposal.dati?.nome_magia || '?')); return; }
+      setEditForm({
+        proposal, mag,
+        fields: { campo: proposal.dati?.campo || 'desc', nuovo_valore: proposal.dati?.nuovo_valore || proposal.descrizione || '' },
+      });
+    } else if (tipo === 'modifica_arco') {
+      const arc = arcs.find(a => a.name.toLowerCase() === (proposal.dati?.nome_arco || '').toLowerCase());
+      if (!arc) { showToast('⚠ Arco non trovato: ' + (proposal.dati?.nome_arco || '?')); return; }
+      setEditForm({
+        proposal, arc,
+        fields: { campo: proposal.dati?.campo || 'desc', nuovo_valore: proposal.dati?.nuovo_valore || proposal.descrizione || '' },
+      });
+    } else if (tipo === 'aggiorna_evento') {
+      const ev = elements.find(e => e.cat === 'event' && e.name.toLowerCase() === (proposal.dati?.nome_evento || '').toLowerCase());
+      if (!ev) { showToast('⚠ Evento non trovato: ' + (proposal.dati?.nome_evento || '?')); return; }
+      const placeEl = elements.find(e => e.cat === 'place' && e.name.toLowerCase() === (proposal.dati?.eventPlace || '').toLowerCase());
+      const suggestedEls = (proposal.dati?.eventEls || [])
+        .map(n => elements.find(e => e.name.toLowerCase() === n.toLowerCase()))
+        .filter(Boolean);
+      const existingIds = new Set(ev.eventEls || []);
+      const newEls = suggestedEls.filter(e => !existingIds.has(e.id));
+      setEditForm({
+        proposal, ev,
+        fields: {
+          eventPlace: placeEl?.id || ev.eventPlace || '',
+          eventEls:   [...(ev.eventEls || []), ...newEls.map(e => e.id)],
+          newEls,
+          newPlace: placeEl && (!ev.eventPlace || ev.eventPlace !== placeEl.id) ? placeEl : null,
+        },
+      });
     }
   };
 
@@ -651,6 +710,28 @@ ${proposal.descrizione}`,
         showToast(`✓ Arco ${arc.name} aggiornato`);
       }
 
+      // ── Aggiorna evento ──
+      if (tipo === 'aggiorna_evento' && editForm.ev) {
+        const ev = editForm.ev;
+        await updateEl(ev.id, {
+          eventPlace: fields.eventPlace || ev.eventPlace || null,
+          eventEls:   fields.eventEls || ev.eventEls || [],
+        });
+        // Sync changelog per i nuovi elementi aggiunti
+        const placeId = fields.eventPlace || ev.eventPlace;
+        if (placeId && ev.date && fields.eventEls?.length) {
+          for (const elId of fields.eventEls) {
+            const el = elements.find(e => e.id === elId);
+            if (!el) continue;
+            const exists = (el.changelog || []).some(c => c.date === ev.date && c.placeId === placeId);
+            if (!exists) {
+              await updateEl(elId, { changelog: [...(el.changelog || []), { date: ev.date, placeId, text: `Presente durante: ${ev.name}` }] });
+            }
+          }
+        }
+        showToast(`✓ Evento "${ev.name}" aggiornato`);
+      }
+
       await deleteProposal(uid, wid, proposal.id);
     } catch (e) {
       showToast('⚠ Errore nell\'applicazione della modifica');
@@ -666,11 +747,24 @@ ${proposal.descrizione}`,
   // ── Costruisce initialData per ElementModal dalla proposta ──
   const proposalToInitialData = (proposal) => {
     if (proposal.tipo === 'nuovo_elemento') {
+      const isEvent = proposal.dati?.cat === 'event';
+      const placeEl = isEvent && proposal.dati?.eventPlace
+        ? elements.find(e => e.cat === 'place' && e.name.toLowerCase() === proposal.dati.eventPlace.toLowerCase())
+        : null;
+      const eventElIds = isEvent
+        ? (proposal.dati?.eventEls || [])
+            .map(n => elements.find(e => e.name.toLowerCase() === n.toLowerCase())?.id)
+            .filter(Boolean)
+        : [];
       return {
         cat:        proposal.dati?.cat || 'char',
         name:       proposal.dati?.name || '',
         desc:       proposal.dati?.desc || proposal.descrizione || '',
         importance: proposal.dati?.importance || 'secondario',
+        date:       isEvent ? (proposal.dati?.date || '') : undefined,
+        eventPlace: isEvent ? (placeEl?.id || '') : undefined,
+        eventEls:   isEvent ? eventElIds : undefined,
+        eventType:  isEvent ? 'point' : undefined,
         status:     'draft',
         tags:       [],
         extra:      {},
@@ -1204,6 +1298,43 @@ ${targetEl?.notes || ''}`,
               </div>
             )}
 
+            {/* ── Form: aggiorna evento ── */}
+            {editForm.proposal.tipo === 'aggiorna_evento' && editForm.ev && (
+              <div>
+                <div style={{ fontSize: 11, color: '#7ab8d4', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 14 }}>
+                  Evento: <strong style={{ color: 'var(--text)' }}>{editForm.ev.name}</strong>
+                  {editForm.ev.date && <span style={{ marginLeft: 8, opacity: .6 }}>({editForm.ev.date})</span>}
+                </div>
+                {editForm.fields.newPlace && (
+                  <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--surface2)', borderRadius: 7, fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.07em' }}>Luogo suggerito</span>
+                    <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>📍</span>
+                      <span style={{ color: 'var(--text)' }}>{editForm.fields.newPlace.name}</span>
+                      {editForm.ev.eventPlace && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>(sostituisce luogo attuale)</span>}
+                    </div>
+                  </div>
+                )}
+                {editForm.fields.newEls?.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8 }}>
+                      Elementi da aggiungere ({editForm.fields.newEls.length})
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {editForm.fields.newEls.map(el => (
+                        <span key={el.id} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: 'var(--surface2)', border: '1px solid var(--border-light)', color: 'var(--text)' }}>
+                          {el.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!editForm.fields.newPlace && !editForm.fields.newEls?.length && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nessuna modifica da applicare (elementi e luogo già presenti).</div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
               <button className="btn-g" onClick={() => setEditForm(null)} disabled={applying}>Annulla</button>
               <button className="btn-p" onClick={applyDirect} disabled={applying}>
@@ -1221,6 +1352,15 @@ ${targetEl?.notes || ''}`,
           defaultCat={acceptModal.dati?.cat || 'char'}
           onSave={async (data) => {
             await addEl(data);
+            // Sync changelog per eventi con partecipanti e luogo
+            if (data.cat === 'event' && data.eventPlace && data.date && data.eventEls?.length) {
+              for (const elId of data.eventEls) {
+                const el = elements.find(e => e.id === elId);
+                if (!el) continue;
+                const exists = (el.changelog || []).some(c => c.date === data.date && c.placeId === data.eventPlace);
+                if (!exists) await updateEl(elId, { changelog: [...(el.changelog || []), { date: data.date, placeId: data.eventPlace, text: `Presente durante: ${data.name}` }] });
+              }
+            }
             await deleteProposal(uid, wid, acceptModal.id);
             setAcceptModal(null);
             showToast('✓ Elemento creato dalla proposta');

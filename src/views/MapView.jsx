@@ -3,7 +3,7 @@ import { useWorld } from '../hooks/useWorld';
 import { getMap, saveMap } from '../firebase/db';
 
 const IMP_KEYS_DATE  = ['principale', 'primario', 'secondario', 'minore'];
-const IMP_LABEL_DATE = { principale: 'Protagonisti', primario: 'Primari', secondario: 'Secondari', minore: 'Minori' };
+const IMP_LABEL_DATE = { principale: 'Principali', primario: 'Primari', secondario: 'Secondari', minore: 'Minori' };
 
 function EventDateRow({ ev, selected, onSelect }) {
   return (

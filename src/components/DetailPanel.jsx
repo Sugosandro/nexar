@@ -6,6 +6,25 @@ import FazioneModal from './FazioneModal';
 import MagiaModal from './MagiaModal';
 import ArcModal from './ArcModal';
 
+// ── IMAGE CAROUSEL ──
+function ImageCarousel({ images }) {
+  const [idx, setIdx] = useState(0);
+  const prev = () => setIdx(i => (i - 1 + images.length) % images.length);
+  const next = () => setIdx(i => (i + 1) % images.length);
+  return (
+    <div style={{ position: 'relative', marginBottom: 8 }}>
+      <img className="dp-img" src={images[idx]} alt="" style={{ display: 'block' }} />
+      <button onClick={prev} style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.55)', border: 'none', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+      <button onClick={next} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.55)', border: 'none', color: '#fff', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 4 }}>
+        {images.map((_, i) => (
+          <div key={i} onClick={() => setIdx(i)} style={{ width: 6, height: 6, borderRadius: '50%', background: i === idx ? '#fff' : 'rgba(255,255,255,.4)', cursor: 'pointer' }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── CHANGELOG TAB ──
 function ChangelogTab({ el, updateEl, elements, showToast }) {
   const luoghi = elements.filter(e => e.cat === 'place');
@@ -385,7 +404,12 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
         <div className="dp-body" style={activeTab === 'notes' ? { display: 'flex', flexDirection: 'column' } : undefined}>
           {activeTab === 'info' && (
             <>
-              {el.image && <img className="dp-img" src={el.image} alt="" />}
+              {(() => {
+                const imgs = el.images?.length ? el.images : (el.image ? [el.image] : []);
+                if (!imgs.length) return null;
+                if (imgs.length === 1) return <img className="dp-img" src={imgs[0]} alt="" />;
+                return <ImageCarousel images={imgs} />;
+              })()}
               <div className="dp-sec">
                 <div className="dp-lbl">Descrizione</div>
                 <div className="dp-txt">{el.desc || <em style={{ opacity: .4 }}>—</em>}</div>

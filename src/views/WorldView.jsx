@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWorld } from '../hooks/useWorld';
 import ElementCard from '../components/ElementCard';
 import ElementModal from '../components/ElementModal';
 
 const IMPORTANCE_ORDER = { principale: 0, primario: 1, secondario: 2, minore: 3, undefined: 4 };
 const IMPORTANCE_LABELS = {
-  principale: '⭐⭐⭐ principale',
+  principale: '⭐⭐⭐ Principale',
   primario:     '⭐⭐ Primario',
   secondario:   '⭐ Secondario',
   minore:       '· Minore',
@@ -15,6 +15,50 @@ export default function WorldView({ onOpenElement, showToast }) {
   const { elements, allCats, arcs, fazioni, addEl, updateEl } = useWorld();
 
   const [showModal,    setShowModal]    = useState(false);
+
+  // ── Migrazione importance: protagonista → principale ─────────────────────
+  const migDone = useRef(false);
+  useEffect(() => {
+    if (migDone.current || !elements.length) return;
+    migDone.current = true;
+    const toMigrate = elements.filter(e => e.importance === 'protagonista');
+    if (!toMigrate.length) return;
+    (async () => {
+      for (const el of toMigrate) {
+        await updateEl(el.id, { importance: 'principale' });
+      }
+    })();
+  }, [elements]); // eslint-disable-line
+
+  // ── Sync retroattivo storico eventi ──────────────────────────────────────
+  const syncDone = useRef(false);
+  useEffect(() => {
+    if (syncDone.current || !elements.length) return;
+    syncDone.current = true;
+    const events = elements.filter(e =>
+      e.cat === 'event' && e.eventPlace && e.date && e.eventEls?.length
+    );
+    if (!events.length) return;
+    (async () => {
+      let added = 0;
+      for (const ev of events) {
+        for (const elId of ev.eventEls) {
+          const el = elements.find(e => e.id === elId);
+          if (!el) continue;
+          const exists = (el.changelog || []).some(
+            c => c.date === ev.date && c.placeId === ev.eventPlace
+          );
+          if (!exists) {
+            await updateEl(elId, {
+              changelog: [...(el.changelog || []), { date: ev.date, placeId: ev.eventPlace, text: `Presente durante: ${ev.name}` }],
+            });
+            added++;
+          }
+        }
+      }
+      if (added > 0) showToast(`✓ Storico sincronizzato: ${added} voci aggiunte`);
+    })();
+  }, [elements]); // eslint-disable-line
   const [search,       setSearch]       = useState('');
   const [catFilter,    setCatFilter]    = useState('');
   const [subFilter,    setSubFilter]    = useState('');
@@ -299,8 +343,8 @@ export default function WorldView({ onOpenElement, showToast }) {
               for (const elId of data.eventEls) {
                 const el = elements.find(e => e.id === elId);
                 if (!el) continue;
-                const newEntry = { date: data.date, placeId: data.eventPlace, text: `Presente durante: ${data.name}` };
-                await updateEl(elId, { changelog: [...(el.changelog || []), newEntry] });
+                const exists = (el.changelog || []).some(c => c.date === data.date && c.placeId === data.eventPlace);
+                if (!exists) await updateEl(elId, { changelog: [...(el.changelog || []), { date: data.date, placeId: data.eventPlace, text: `Presente durante: ${data.name}` }] });
               }
             }
             setShowModal(false);

@@ -60,7 +60,7 @@ export default function ElementCard({ element: el, onClick }) {
         {/* Badge importanza */}
         {el.importance && el.importance !== 'minore' && (
   <div style={{ fontSize: 11, color: 'var(--gold)', marginTop: 4 }}>
-    {{ protagonista: '⭐⭐⭐ Protagonista', primario: '⭐⭐ Primario', secondario: '⭐ Secondario' }[el.importance]}
+    {{ principale: '⭐⭐⭐ Principale', primario: '⭐⭐ Primario', secondario: '⭐ Secondario' }[el.importance]}
   </div>
 )}
         {/* Badge stato */}

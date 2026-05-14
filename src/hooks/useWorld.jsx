@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import {
   subscribeElements, subscribeArcs, subscribeFazioni,
   subscribeMagie, subscribeCats,
+  subscribeFili, addFilo, updateFilo, deleteFilo,
+  subscribeSessioni, addSessione, updateSessione, deleteSessione,
+  subscribeRumors, addRumor, updateRumor, deleteRumor,
   addElement, updateElement, deleteElement, syncBidirectionalTags,
   addArc, updateArc, deleteArc,
   addFazione, updateFazione, deleteFazione,
@@ -12,7 +15,7 @@ import {
 import { db } from '../firebase/config';
 
 export const BUILTIN_CATS = [
-  { id: 'char',   name: 'Personaggi', icon: '👤', color: '#7ab8d4', colorDim: '#2a4a5a', subs: [], builtin: true },
+  { id: 'char',   name: 'Personaggi', icon: '👤', color: '#7ab8d4', colorDim: '#2a4a5a', subs: ['NPC'], builtin: true },
   { id: 'place',  name: 'Luoghi',     icon: '📍', color: '#8fbd7c', colorDim: '#2f4a28', subs: [], builtin: true },
   { id: 'object', name: 'Oggetti',    icon: '📦', color: '#d4956a', colorDim: '#4a2e18', subs: [], builtin: true },
   { id: 'event',  name: 'Eventi',     icon: '⚡', color: '#b88fc4', colorDim: '#3a2848', subs: [], builtin: true },
@@ -49,26 +52,32 @@ export function WorldProvider({ uid, wid, children }) {
   const [fazioni,  setFazioni]  = useState([]);
   const [magie,    setMagie]    = useState([]);
   const [cats,     setCats]     = useState([]);
+  const [filiNarr, setFiliNarr] = useState([]);
+  const [sessioni, setSessioni] = useState([]);
+  const [rumors,   setRumors]   = useState([]);
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
     if (!uid || !wid) return;
     setLoading(true);
-    const unsubEl  = subscribeElements(uid, wid, data => { setElements(data); setLoading(false); });
-    const unsubArc = subscribeArcs    (uid, wid, setArcs);
-    const unsubFaz = subscribeFazioni (uid, wid, setFazioni);
-    const unsubMag = subscribeMagie   (uid, wid, setMagie);
-    const unsubCat = subscribeCats    (uid, wid, setCats);
-    return () => { unsubEl(); unsubArc(); unsubFaz(); unsubMag(); unsubCat(); };
+    const unsubEl   = subscribeElements(uid, wid, data => { setElements(data); setLoading(false); });
+    const unsubArc  = subscribeArcs    (uid, wid, setArcs);
+    const unsubFaz  = subscribeFazioni (uid, wid, setFazioni);
+    const unsubMag  = subscribeMagie   (uid, wid, setMagie);
+    const unsubCat  = subscribeCats    (uid, wid, setCats);
+    const unsubFili = subscribeFili    (uid, wid, setFiliNarr);
+    const unsubSess = subscribeSessioni(uid, wid, setSessioni);
+    const unsubRum  = subscribeRumors  (uid, wid, setRumors);
+    return () => { unsubEl(); unsubArc(); unsubFaz(); unsubMag(); unsubCat(); unsubFili(); unsubSess(); unsubRum(); };
   }, [uid, wid]);
 
   // ── Helpers ──
   const allCats = () => {
     return BUILTIN_CATS.map(bc => {
-      const override = cats.find(c => c.id === bc.id);
-      return override
-        ? { ...bc, name: t('cat.builtin_' + bc.id), subs: override.subs || [] }
-        : { ...bc, name: t('cat.builtin_' + bc.id) };
+      const override   = cats.find(c => c.id === bc.id);
+      const customSubs = override?.subs || [];
+      const mergedSubs = [...new Set([...bc.subs, ...customSubs])];
+      return { ...bc, name: t('cat.builtin_' + bc.id), subs: mergedSubs };
     }).concat(
       // Escludi documenti malformati: devono avere name E non corrispondere a una built-in
       cats.filter(c => c.name && !BUILTIN_CATS.find(bc => bc.id === c.id))
@@ -160,6 +169,21 @@ export function WorldProvider({ uid, wid, children }) {
   const updateCatFn = (cid, changes) => updateCat(uid, wid, cid, changes);
   const deleteCatFn = (cid)          => deleteCat(uid, wid, cid);
 
+  // ── Azioni fili narrativi ──
+  const addFiloFn    = (data)         => addFilo   (uid, wid, data);
+  const updateFiloFn = (fid, changes) => updateFilo(uid, wid, fid, changes);
+  const deleteFiloFn = (fid)          => deleteFilo(uid, wid, fid);
+
+  // ── Azioni sessioni ──
+  const addSesseFn    = (data)         => addSessione   (uid, wid, data);
+  const updateSesseFn = (sid, changes) => updateSessione(uid, wid, sid, changes);
+  const deleteSesseFn = (sid)          => deleteSessione(uid, wid, sid);
+
+  // ── Azioni rumors ──
+  const addRumorFn    = (data)         => addRumor   (uid, wid, data);
+  const updateRumorFn = (rid, changes) => updateRumor(uid, wid, rid, changes);
+  const deleteRumorFn = (rid)          => deleteRumor(uid, wid, rid);
+
   const upsertBuiltinSubs = async (catId, newSub) => {
     // Usa sempre setDoc con l'ID della built-in — fa upsert automatico.
     // Legge prima le subs esistenti per non sovrascriverle.
@@ -172,7 +196,7 @@ export function WorldProvider({ uid, wid, children }) {
   };
 
   const value = {
-    elements, arcs, fazioni, magie, cats, loading,
+    elements, arcs, fazioni, magie, cats, fili: filiNarr, sessioni, rumors, loading,
     uid, wid,
     allCats, catById, elById, arcById, fazById, magById,
     tagId, tagObj, sortTags,
@@ -183,6 +207,9 @@ export function WorldProvider({ uid, wid, children }) {
     addFazione: addFazFn, updateFazione: updateFazFn, deleteFazione: deleteFazFn,
     addMagia: addMagFn, updateMagia: updateMagFn, deleteMagia: deleteMagFn,
     addCat: addCatFn, updateCat: updateCatFn, deleteCat: deleteCatFn,
+    addFilo: addFiloFn, updateFilo: updateFiloFn, deleteFilo: deleteFiloFn,
+    addSessione: addSesseFn, updateSessione: updateSesseFn, deleteSessione: deleteSesseFn,
+    addRumor: addRumorFn, updateRumor: updateRumorFn, deleteRumor: deleteRumorFn,
     upsertBuiltinSubs,
   };
 

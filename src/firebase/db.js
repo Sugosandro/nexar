@@ -418,6 +418,94 @@ export async function deleteText(uid, wid, tid) {
 
 
 // ══════════════════════════════════════════════
+// FILI NARRATIVI
+// ══════════════════════════════════════════════
+
+export function subscribeFili(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'fili'), orderBy('createdAt', 'asc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function addFilo(uid, wid, data) {
+  const ref = await addDoc(colRef(uid, wid, 'fili'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateFilo(uid, wid, fid, changes) {
+  await updateDoc(docRef(uid, wid, 'fili', fid), changes);
+}
+
+export async function deleteFilo(uid, wid, fid) {
+  await deleteDoc(docRef(uid, wid, 'fili', fid));
+}
+
+
+// ══════════════════════════════════════════════
+// SESSIONI DI GIOCO
+// ══════════════════════════════════════════════
+
+export function subscribeSessioni(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'sessioni'), orderBy('data', 'asc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function addSessione(uid, wid, data) {
+  const ref = await addDoc(colRef(uid, wid, 'sessioni'), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateSessione(uid, wid, sid, changes) {
+  await updateDoc(docRef(uid, wid, 'sessioni', sid), {
+    ...changes,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function deleteSessione(uid, wid, sid) {
+  await deleteDoc(docRef(uid, wid, 'sessioni', sid));
+}
+
+
+// ══════════════════════════════════════════════
+// RUMOR E VOCI
+// ══════════════════════════════════════════════
+
+export function subscribeRumors(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'rumors'), orderBy('createdAt', 'desc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function addRumor(uid, wid, data) {
+  const ref = await addDoc(colRef(uid, wid, 'rumors'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateRumor(uid, wid, rid, changes) {
+  await updateDoc(docRef(uid, wid, 'rumors', rid), changes);
+}
+
+export async function deleteRumor(uid, wid, rid) {
+  await deleteDoc(docRef(uid, wid, 'rumors', rid));
+}
+
+
+// ══════════════════════════════════════════════
 // CAPITOLI EDITOR
 // ══════════════════════════════════════════════
 

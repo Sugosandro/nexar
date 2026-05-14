@@ -12,11 +12,17 @@ import ConnectionsView from '../views/ConnectionsView';
 import MapView from '../views/MapView';
 import AnalisiView from '../views/AnalisiView';
 import TestiView   from '../views/TestiView';
-import EditorView  from '../views/EditorView';
+import EditorView    from '../views/EditorView';
+import SessioniView  from '../views/SessioniView';
+import FiliView      from '../views/FiliView';
+import RumorsView    from '../views/RumorsView';
 import DetailPanel from './DetailPanel';
 import CatModal from './CatModal';
 import Toast from './Toast';
 import GlobalSearch from './GlobalSearch';
+import InitiativeTracker from './InitiativeTracker';
+import SettingsModal from './SettingsModal';
+import ViewHint from './ViewHint';
 
 const VIEWS = [
   { id: 'world',       icon: '🌍', labelKey: 'nav.world',       component: WorldView },
@@ -29,41 +35,63 @@ const VIEWS = [
   { id: 'analisi',     icon: '🔍', labelKey: 'nav.analysis',    component: AnalisiView },
   { id: 'testi',       icon: '📄', labelKey: 'nav.texts',       component: TestiView },
   { id: 'editor',      icon: '✍', labelKey: 'nav.editor',      component: EditorView },
+  { id: 'sessioni',    icon: '🎲', labelKey: 'nav.sessions',    component: SessioniView },
+  { id: 'fili',        icon: '🔀', labelKey: 'nav.threads',     component: FiliView },
+  { id: 'rumors',      icon: '💬', labelKey: 'nav.rumors',      component: RumorsView },
 ];
 
+const VIEWS_META = VIEWS.map(({ id, icon, labelKey }) => ({ id, icon, labelKey }));
+
+function loadViewsConfig() {
+  try {
+    const raw = localStorage.getItem('nexar-views-config');
+    if (!raw) return VIEWS.map(v => ({ id: v.id, visible: true }));
+    const saved = JSON.parse(raw);
+    // Preserve saved order + visibility; append any views added after save
+    const savedIds = saved.map(s => s.id).filter(id => VIEWS.find(v => v.id === id));
+    const ordered  = savedIds.map(id => ({ id, visible: saved.find(s => s.id === id)?.visible ?? true }));
+    const newOnes  = VIEWS.filter(v => !savedIds.includes(v.id)).map(v => ({ id: v.id, visible: true }));
+    return [...ordered, ...newOnes];
+  } catch {
+    return VIEWS.map(v => ({ id: v.id, visible: true }));
+  }
+}
+
 export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { signOut } = useAuth();
   const { loading } = useWorld();
 
-  const toggleLang = () => {
-    const next = i18n.language === 'it' ? 'en' : 'it';
-    i18n.changeLanguage(next);
-    localStorage.setItem('nexar-lang', next);
+  const [curView,      setCurView]      = useState('world');
+  const [preloadText,  setPreloadText]  = useState(null);
+  const [panel,        setPanel]        = useState(null);
+  const [sidebarOpen,  setSidebarOpen]  = useState(false);
+  const [catModal,     setCatModal]     = useState(false);
+  const [initOpen,     setInitOpen]     = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [toast,        setToast]        = useState(null);
+  const [viewsConfig,  setViewsConfig]  = useState(loadViewsConfig);
+
+  const handleViewsConfigChange = (newConfig) => {
+    setViewsConfig(newConfig);
+    localStorage.setItem('nexar-views-config', JSON.stringify(newConfig));
   };
 
-  const [curView,     setCurView]     = useState('world');
-  const [preloadText, setPreloadText] = useState(null); // testo da caricare in Analisi
-  const [panel,       setPanel]       = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [catModal,    setCatModal]    = useState(false);
-  const [toast,       setToast]       = useState(null);
+  const orderedViews = viewsConfig
+    .filter(vc => vc.visible)
+    .map(vc => VIEWS.find(v => v.id === vc.id))
+    .filter(Boolean);
 
   const showToast  = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
   const openPanel  = (type, id) => setPanel({ type, id });
   const closePanel = () => setPanel(null);
 
-  // Tasto indietro Android/iOS — chiude il pannello invece di uscire
   useEffect(() => {
-    if (panel) {
-      window.history.pushState({ panel: true }, '');
-    }
+    if (panel) window.history.pushState({ panel: true }, '');
   }, [panel]);
 
   useEffect(() => {
-    const handlePopState = () => {
-      if (panel) closePanel();
-    };
+    const handlePopState = () => { if (panel) closePanel(); };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [panel]);
@@ -75,20 +103,41 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
       <header className="app-header">
         <button className="mob-menu-btn" onClick={() => setSidebarOpen(s => !s)} aria-label="Menu">☰</button>
         <div className="logo">Nexar</div>
+        <button
+          onClick={() => setCatModal(true)}
+          style={{
+            flexShrink: 0, padding: '5px 13px', fontSize: 13, cursor: 'pointer',
+            fontFamily: "'Crimson Pro', serif", fontWeight: 600, letterSpacing: '.3px',
+            background: 'var(--gold-glow)', border: '1px solid var(--gold-dim)',
+            color: 'var(--gold)', borderRadius: 'var(--r)', transition: 'all .15s',
+            whiteSpace: 'nowrap',
+          }}>
+          {t('header.categories_btn')}
+        </button>
         <nav className="app-nav">
-          {VIEWS.map(v => (
+          {orderedViews.map(v => (
             <button key={v.id} className={curView === v.id ? 'active' : ''}
               onClick={() => { setCurView(v.id); setSidebarOpen(false); }}>
               {v.icon} {t(v.labelKey)}
             </button>
           ))}
         </nav>
+        <ViewHint viewId={curView} />
         <GlobalSearch onOpen={openPanel} />
         <div className="header-acts">
-          <button className="btn-sm" onClick={toggleLang} title="Change language">
-            {i18n.language === 'it' ? '🇬🇧 EN' : '🇮🇹 IT'}
+          <button className="btn-sm" onClick={() => setSettingsOpen(true)} title={t('settings.title')}>⚙</button>
+          <button
+            onClick={() => setInitOpen(v => !v)}
+            style={{
+              flexShrink: 0, padding: '5px 13px', fontSize: 13, cursor: 'pointer',
+              fontFamily: "'Crimson Pro', serif", fontWeight: 600, letterSpacing: '.3px',
+              background: initOpen ? 'rgba(200,50,50,.25)' : 'rgba(200,50,50,.12)',
+              border: `1px solid ${initOpen ? 'rgba(220,80,80,.7)' : 'rgba(200,50,50,.35)'}`,
+              color: initOpen ? '#e07070' : '#c07070',
+              borderRadius: 'var(--r)', transition: 'all .15s', whiteSpace: 'nowrap',
+            }}>
+            ⚔ {t('init.title')}
           </button>
-          <button className="btn-sm" onClick={() => setCatModal(true)}>{t('header.categories_btn')}</button>
           <button className="btn-sm" onClick={onChangeWorld}>🌍 {worldName || t('nav.world')}</button>
           <img src={user.photoURL} alt={user.displayName} className="user-avatar"
             title={t('header.user_tooltip', { name: user.displayName })} onClick={signOut} style={{ cursor: 'pointer' }} />
@@ -133,7 +182,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
       {/* Bottom nav mobile */}
       <nav className="mob-nav">
         <div className="mob-nav-inner">
-          {VIEWS.map(v => (
+          {orderedViews.map(v => (
             <button key={v.id} className={curView === v.id ? 'active' : ''}
               onClick={() => { setCurView(v.id); setPanel(null); }}>
               {v.icon} {t(v.labelKey)}
@@ -143,6 +192,15 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
       </nav>
 
       {catModal && <CatModal onClose={() => setCatModal(false)} showToast={showToast} />}
+      <InitiativeTracker open={initOpen} onClose={() => setInitOpen(false)} />
+      {settingsOpen && (
+        <SettingsModal
+          views={VIEWS_META}
+          viewsConfig={viewsConfig}
+          onViewsConfigChange={handleViewsConfigChange}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {toast && <Toast message={toast} />}
     </div>
   );

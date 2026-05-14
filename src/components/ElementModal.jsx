@@ -2,6 +2,118 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { tagId, tagObj, TAG_IMPORTANCE, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
+import ElementPicker from './ElementPicker';
+
+const STATI_BY_CAT = {
+  char:   ['alleato', 'nemico', 'neutrale', 'sconosciuto', 'deceduto'],
+  object: ['posseduto', 'perso', 'rubato', 'distrutto'],
+};
+const FALLBACK_STATI = ['alleato', 'nemico', 'neutrale', 'sconosciuto'];
+
+export const REL_STATO_COLOR = {
+  alleato: '#6ab675', nemico: '#e07070', neutrale: '#8ec8e4', sconosciuto: '#666',
+  deceduto: '#555', posseduto: '#6ab675', perso: '#888', rubato: '#d4956a', distrutto: '#e07070',
+};
+
+function TagEditor({ tagEntry, element, catColor, onUpdateField, onDone, sessioni }) {
+  const { t } = useTranslation();
+  const to       = tagEntry ? (typeof tagEntry === 'string' ? { id: tagEntry, rel: '', importance: 'Media' } : tagEntry) : {};
+  const statiList = STATI_BY_CAT[element.cat] || FALLBACK_STATI;
+
+  const [newStato,    setNewStato]    = useState('');
+  const [newSessione, setNewSessione] = useState('');
+  const [newNota,     setNewNota]     = useState('');
+
+  const addEntry = () => {
+    if (!newStato) return;
+    const entry = { stato: newStato, sessione: newSessione || null, nota: newNota.trim(), ts: Date.now() };
+    onUpdateField('storia', [...(to.storia || []), entry]);
+    setNewStato(''); setNewSessione(''); setNewNota('');
+  };
+
+  const removeEntry = (idx) => {
+    onUpdateField('storia', (to.storia || []).filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--surface2)', border: `1px solid ${catColor}44`, borderRadius: 'var(--r)' }}>
+      <div style={{ fontSize: 11, color: catColor, marginBottom: 8, fontWeight: 600 }}>
+        {t('element.tag_rel_label', { name: element.name })}
+      </div>
+
+      {/* Rel + importance */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+        <input type="text" placeholder={t('element.tag_rel_ph')}
+          value={to.rel || ''}
+          onChange={e => onUpdateField('rel', e.target.value)}
+          style={{ flex: 1, minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
+        <div style={{ display: 'flex', gap: 4 }}>
+          {TAG_IMPORTANCE.map(imp => (
+            <button key={imp} type="button" onClick={() => onUpdateField('importance', imp)}
+              style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                background: (to.importance || 'Media') === imp ? TAG_IMP_COLOR[imp] + '33' : 'var(--surface)',
+                border: `1px solid ${(to.importance || 'Media') === imp ? TAG_IMP_COLOR[imp] : 'var(--border)'}`,
+                color: (to.importance || 'Media') === imp ? TAG_IMP_COLOR[imp] : 'var(--text-muted)' }}>
+              {TAG_IMP_LABEL[imp]} {t('element.tag_imp.' + imp)}
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={onDone}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✓</button>
+      </div>
+
+      {/* Storia */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+          {t('rel.storia_lbl')}
+        </div>
+
+        {(to.storia || []).length > 0 && (
+          <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {(to.storia || []).map((s, i) => {
+              const sess = sessioni.find(ss => ss.id === s.sessione);
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: REL_STATO_COLOR[s.stato] || '#888', flexShrink: 0 }} />
+                  <span style={{ color: REL_STATO_COLOR[s.stato] || '#888', fontSize: 11, flexShrink: 0 }}>{t('rel.stato_' + s.stato)}</span>
+                  {sess && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>S{sess.numero}</span>}
+                  {s.nota && <span style={{ color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nota}</span>}
+                  <button onClick={() => removeEntry(i)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, opacity: .5, padding: 0, marginLeft: 'auto', flexShrink: 0 }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = .5}>×</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Add entry form */}
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
+          <select value={newStato} onChange={e => setNewStato(e.target.value)}
+            style={{ flex: '0 0 110px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: newStato ? 'var(--text)' : 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }}>
+            <option value="">{t('rel.stato_lbl')}</option>
+            {statiList.map(s => <option key={s} value={s}>{t('rel.stato_' + s)}</option>)}
+          </select>
+          <select value={newSessione} onChange={e => setNewSessione(e.target.value)}
+            style={{ flex: '1 1 100px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }}>
+            <option value="">{t('rel.no_session')}</option>
+            {sessioni.map(s => <option key={s.id} value={s.id}>S{s.numero} — {s.titolo}</option>)}
+          </select>
+          <input type="text" placeholder={t('rel.nota_ph')}
+            value={newNota}
+            onChange={e => setNewNota(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEntry(); } }}
+            style={{ flex: '2 1 130px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }} />
+          <button type="button" onClick={addEntry} disabled={!newStato}
+            style={{ padding: '4px 10px', background: newStato ? 'var(--gold-glow)' : 'var(--surface2)', border: `1px solid ${newStato ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', color: newStato ? 'var(--gold)' : 'var(--text-muted)', cursor: newStato ? 'pointer' : 'default', fontSize: 12, fontFamily: "'Crimson Pro', serif" }}>
+            {t('rel.add_btn')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const EXTRA_FIELDS = {
   char:   [{ key: 'ruolo', isDate: false }, { key: 'nascita', isDate: true }],
@@ -19,7 +131,7 @@ const IMP_OPTS = [
 
 export default function ElementModal({ defaultCat = 'char', initialData = null, onSave, onClose }) {
   const { t } = useTranslation();
-  const { allCats, elements } = useWorld();
+  const { allCats, elements, sessioni } = useWorld();
   const cats = allCats();
 
   const [cat,      setCat]      = useState(initialData?.cat    || defaultCat);
@@ -43,19 +155,9 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
 
   const [eventPlace, setEventPlace] = useState(initialData?.eventPlace || '');
   const [eventEls,   setEventEls]   = useState(initialData?.eventEls   || []);
-  const [evElQuery,  setEvElQuery]  = useState('');
-  const [evElOpen,   setEvElOpen]   = useState(false);
   const [eventType,  setEventType]  = useState(initialData?.eventType  || 'point');
   const [eventSide,  setEventSide]  = useState(initialData?.eventSide  || '');
   const [dateEnd,    setDateEnd]    = useState(initialData?.dateEnd    || '');
-
-  const evElSuggestions = evElQuery
-    ? elements.filter(e =>
-        e.cat !== 'event' &&
-        !eventEls.includes(e.id) &&
-        e.name.toLowerCase().includes(evElQuery.toLowerCase())
-      ).slice(0, 8)
-    : [];
 
   const handleCatChange = (newCat) => { setCat(newCat); setSub(''); setExtra({}); };
   const setExtraField = (key, val) => setExtra(prev => ({ ...prev, [key]: val }));
@@ -71,7 +173,11 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
   };
 
   const updateTagField = (id, field, value) => {
-    setTags(prev => prev.map(t => tagId(t) === id ? { ...tagObj(t), [field]: value } : t));
+    setTags(prev => prev.map(tg => {
+      if (tagId(tg) !== id) return tg;
+      const base = typeof tg === 'string' ? { id: tg, rel: '', importance: 'Media' } : tg;
+      return { ...base, [field]: value };
+    }));
   };
   const addTag    = (id) => { setTags(prev => [...prev, { id, rel: '', importance: 'media' }]); setTagQuery(''); setTagOpen(false); setEditingTag(id); };
   const removeTag = (id) => { setTags(prev => prev.filter(t => tagId(t) !== id)); setEditingTag(null); };
@@ -258,35 +364,18 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
 
           {editingTag && (() => {
             const tagEntry = tags.find(x => tagId(x) === editingTag);
-            const to = tagEntry ? tagObj(tagEntry) : null;
-            const el = to ? elements.find(e => e.id === to.id) : null;
-            if (!to || !el) return null;
+            const el = elements.find(e => e.id === editingTag);
+            if (!tagEntry || !el) return null;
             const catColor = cats.find(c => c.id === el.cat)?.color || '#888';
             return (
-              <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--surface2)', border: `1px solid ${catColor}44`, borderRadius: 'var(--r)' }}>
-                <div style={{ fontSize: 11, color: catColor, marginBottom: 8, fontWeight: 600 }}>
-                  {t('element.tag_rel_label', { name: el.name })}
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <input type="text" placeholder={t('element.tag_rel_ph')}
-                    value={to.rel}
-                    onChange={e => updateTagField(editingTag, 'rel', e.target.value)}
-                    style={{ flex: 1, minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {TAG_IMPORTANCE.map(imp => (
-                      <button key={imp} type="button" onClick={() => updateTagField(editingTag, 'importance', imp)}
-                        style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
-                          background: to.importance === imp ? TAG_IMP_COLOR[imp] + '33' : 'var(--surface)',
-                          border: `1px solid ${to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--border)'}`,
-                          color: to.importance === imp ? TAG_IMP_COLOR[imp] : 'var(--text-muted)' }}>
-                        {TAG_IMP_LABEL[imp]} {t('element.tag_imp.' + imp)}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => setEditingTag(null)}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✓</button>
-                </div>
-              </div>
+              <TagEditor
+                tagEntry={tagEntry}
+                element={el}
+                catColor={catColor}
+                onUpdateField={(field, value) => updateTagField(editingTag, field, value)}
+                onDone={() => setEditingTag(null)}
+                sessioni={sessioni}
+              />
             );
           })()}
         </div>
@@ -353,42 +442,13 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
             {eventPlace && (
               <div className="fg">
                 <label className="fl">{t('element.ev_els_lbl')}</label>
-                <div onClick={() => document.getElementById('evElInput').focus()}
-                  style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '6px 9px', display: 'flex', flexWrap: 'wrap', gap: 5, cursor: 'text' }}>
-                  {eventEls.map(id => {
-                    const el = elements.find(e => e.id === id);
-                    if (!el) return null;
-                    return (
-                      <span key={id} style={{ background: 'var(--surface3)', border: '1px solid var(--border-light)', borderRadius: 20, padding: '2px 8px', fontSize: 12, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                        {el.name}
-                        <span style={{ cursor: 'pointer', opacity: .6, fontSize: 14 }}
-                          onClick={e => { e.stopPropagation(); setEventEls(p => p.filter(i => i !== id)); }}>×</span>
-                      </span>
-                    );
-                  })}
-                  <div style={{ position: 'relative', flex: 1, minWidth: 120 }}>
-                    <input id="evElInput" type="text" placeholder={eventEls.length ? '' : t('element.ev_els_ph')}
-                      value={evElQuery}
-                      onChange={e => { setEvElQuery(e.target.value); setEvElOpen(true); }}
-                      onFocus={() => setEvElOpen(true)}
-                      onBlur={() => setTimeout(() => setEvElOpen(false), 150)}
-                      autoComplete="off"
-                      style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, width: '100%' }}
-                    />
-                    {evElOpen && evElSuggestions.length > 0 && (
-                      <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, width: 260, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700 }}>
-                        {evElSuggestions.map(el => (
-                          <div key={el.id} onMouseDown={() => { setEventEls(p => [...p, el.id]); setEvElQuery(''); setEvElOpen(false); }}
-                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid var(--border)' }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                            onMouseLeave={e => e.currentTarget.style.background = ''}>
-                            {el.name}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ElementPicker
+                  selected={eventEls}
+                  onChange={setEventEls}
+                  exclude={[initialData?.id].filter(Boolean)}
+                  inputId="evElInput"
+                  placeholder={t('element.ev_els_ph')}
+                />
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
                   {t('element.ev_els_note')}
                 </div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { tagId, tagObj, sortTags, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
-import ElementModal from './ElementModal';
+import ElementModal, { REL_STATO_COLOR } from './ElementModal';
 import FazioneModal from './FazioneModal';
 import MagiaModal from './MagiaModal';
 import ArcModal from './ArcModal';
@@ -332,7 +332,8 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
     arcs, updateArc, deleteArc,
     fazioni, updateFazione, deleteFazione,
     magie, updateMagia, deleteMagia,
-    elements, uid, wid
+    elements, uid, wid,
+    sessioni
   } = useWorld();
 
   const [activeTab,    setActiveTab]    = useState('info');
@@ -473,6 +474,22 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
                                 ? <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 6 }}>{tagged.desc.length > 200 ? tagged.desc.slice(0, 200) + '…' : tagged.desc}</div>
                                 : <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 6 }}>{t('dp.no_desc')}</div>
                               }
+                              {(to.storia || []).length > 0 && (
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, marginBottom: 6 }}>
+                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{t('rel.storia_lbl')}</div>
+                                  {(to.storia || []).map((s, si) => {
+                                    const sess = sessioni.find(ss => ss.id === s.sessione);
+                                    return (
+                                      <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginBottom: 3 }}>
+                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: REL_STATO_COLOR[s.stato] || '#888', flexShrink: 0 }} />
+                                        <span style={{ color: REL_STATO_COLOR[s.stato] || '#888', fontSize: 11, flexShrink: 0 }}>{t('rel.stato_' + s.stato)}</span>
+                                        {sess && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>S{sess.numero}</span>}
+                                        {s.nota && <span style={{ color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nota}</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                               <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }}
                                 onClick={e => { e.stopPropagation(); onOpen('element', tagged.id); }}>
                                 {t('dp.open_card')}

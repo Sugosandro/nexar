@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { tagId, tagObj, TAG_IMPORTANCE, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
 import ElementPicker from './ElementPicker';
+import EventDateInput from './EventDateInput';
 
 const STATI_BY_CAT = {
   char:   ['alleato', 'nemico', 'neutrale', 'sconosciuto', 'deceduto'],
@@ -22,13 +23,14 @@ function TagEditor({ tagEntry, element, catColor, onUpdateField, onDone, session
 
   const [newStato,    setNewStato]    = useState('');
   const [newSessione, setNewSessione] = useState('');
+  const [newData,     setNewData]     = useState('');
   const [newNota,     setNewNota]     = useState('');
 
   const addEntry = () => {
     if (!newStato) return;
-    const entry = { stato: newStato, sessione: newSessione || null, nota: newNota.trim(), ts: Date.now() };
+    const entry = { stato: newStato, sessione: newSessione || null, data: newData.trim() || null, nota: newNota.trim(), ts: Date.now() };
     onUpdateField('storia', [...(to.storia || []), entry]);
-    setNewStato(''); setNewSessione(''); setNewNota('');
+    setNewStato(''); setNewSessione(''); setNewData(''); setNewNota('');
   };
 
   const removeEntry = (idx) => {
@@ -47,14 +49,15 @@ function TagEditor({ tagEntry, element, catColor, onUpdateField, onDone, session
           value={to.rel || ''}
           onChange={e => onUpdateField('rel', e.target.value)}
           style={{ flex: 1, minWidth: 160, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 13, padding: '5px 10px', outline: 'none' }} />
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           {TAG_IMPORTANCE.map(imp => (
             <button key={imp} type="button" onClick={() => onUpdateField('importance', imp)}
-              style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+              title={t('element.tag_imp.' + imp.toLowerCase())}
+              style={{ padding: '4px 8px', borderRadius: 20, fontSize: 13, cursor: 'pointer',
                 background: (to.importance || 'Media') === imp ? TAG_IMP_COLOR[imp] + '33' : 'var(--surface)',
                 border: `1px solid ${(to.importance || 'Media') === imp ? TAG_IMP_COLOR[imp] : 'var(--border)'}`,
                 color: (to.importance || 'Media') === imp ? TAG_IMP_COLOR[imp] : 'var(--text-muted)' }}>
-              {TAG_IMP_LABEL[imp]} {t('element.tag_imp.' + imp)}
+              {TAG_IMP_LABEL[imp]}
             </button>
           ))}
         </div>
@@ -76,6 +79,7 @@ function TagEditor({ tagEntry, element, catColor, onUpdateField, onDone, session
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: REL_STATO_COLOR[s.stato] || '#888', flexShrink: 0 }} />
                   <span style={{ color: REL_STATO_COLOR[s.stato] || '#888', fontSize: 11, flexShrink: 0 }}>{t('rel.stato_' + s.stato)}</span>
+                  {s.data && <span style={{ fontSize: 10, color: 'var(--gold)', flexShrink: 0, fontFamily: "'Playfair Display', serif" }}>{s.data}</span>}
                   {sess && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>S{sess.numero}</span>}
                   {s.nota && <span style={{ color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nota}</span>}
                   <button onClick={() => removeEntry(i)}
@@ -89,26 +93,31 @@ function TagEditor({ tagEntry, element, catColor, onUpdateField, onDone, session
         )}
 
         {/* Add entry form */}
-        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center' }}>
-          <select value={newStato} onChange={e => setNewStato(e.target.value)}
-            style={{ flex: '0 0 110px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: newStato ? 'var(--text)' : 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }}>
-            <option value="">{t('rel.stato_lbl')}</option>
-            {statiList.map(s => <option key={s} value={s}>{t('rel.stato_' + s)}</option>)}
-          </select>
-          <select value={newSessione} onChange={e => setNewSessione(e.target.value)}
-            style={{ flex: '1 1 100px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }}>
-            <option value="">{t('rel.no_session')}</option>
-            {sessioni.map(s => <option key={s.id} value={s.id}>S{s.numero} — {s.titolo}</option>)}
-          </select>
-          <input type="text" placeholder={t('rel.nota_ph')}
-            value={newNota}
-            onChange={e => setNewNota(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEntry(); } }}
-            style={{ flex: '2 1 130px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }} />
-          <button type="button" onClick={addEntry} disabled={!newStato}
-            style={{ padding: '4px 10px', background: newStato ? 'var(--gold-glow)' : 'var(--surface2)', border: `1px solid ${newStato ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', color: newStato ? 'var(--gold)' : 'var(--text-muted)', cursor: newStato ? 'pointer' : 'default', fontSize: 12, fontFamily: "'Crimson Pro', serif" }}>
-            {t('rel.add_btn')}
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            <select value={newStato} onChange={e => setNewStato(e.target.value)}
+              style={{ flex: '0 0 110px', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: newStato ? 'var(--text)' : 'var(--text-muted)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }}>
+              <option value="">{t('rel.stato_lbl')}</option>
+              {statiList.map(s => <option key={s} value={s}>{t('rel.stato_' + s)}</option>)}
+            </select>
+            <EventDateInput value={newData} onChange={setNewData} />
+            <select value={newSessione} onChange={e => setNewSessione(e.target.value)}
+              style={{ flex: '1 1 90px', minWidth: 0, boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }}>
+              <option value="">{t('rel.no_session')}</option>
+              {sessioni.map(s => <option key={s.id} value={s.id}>S{s.numero} — {s.titolo}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+            <input type="text" placeholder={t('rel.nota_ph')}
+              value={newNota}
+              onChange={e => setNewNota(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEntry(); } }}
+              style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 8px', outline: 'none' }} />
+            <button type="button" onClick={addEntry} disabled={!newStato}
+              style={{ flexShrink: 0, padding: '4px 10px', background: newStato ? 'var(--gold-glow)' : 'var(--surface2)', border: `1px solid ${newStato ? 'var(--gold-dim)' : 'var(--border)'}`, borderRadius: 'var(--r)', color: newStato ? 'var(--gold)' : 'var(--text-muted)', cursor: newStato ? 'pointer' : 'default', fontSize: 12, fontFamily: "'Crimson Pro', serif" }}>
+              {t('rel.add_btn')}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { tagId, tagObj, sortTags, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
 import ElementModal, { REL_STATO_COLOR } from './ElementModal';
+import EventDateInput from './EventDateInput';
 import FazioneModal from './FazioneModal';
 import MagiaModal from './MagiaModal';
 import ArcModal from './ArcModal';
@@ -235,6 +236,153 @@ function PowersTab({ el, updateEl, magie, elements, showToast }) {
 }
 
 // ── EQUIP TAB ──
+const ACQ_TIPI  = ['trovato', 'creato', 'acquistato', 'ricevuto', 'equipaggiato', 'altro'];
+const LOST_TIPI = ['perso', 'distrutto', 'rotto', 'lasciato', 'rubato', 'ceduto', 'altro'];
+
+function EquipLogRow({ obj, logEntry, onSaveLog, onRemove, isPast }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  const [editAcq,  setEditAcq]  = useState(false);
+  const [acqData,  setAcqData]  = useState(logEntry?.acquired?.data  || '');
+  const [acqTipo,  setAcqTipo]  = useState(logEntry?.acquired?.tipo  || '');
+  const [acqNota,  setAcqNota]  = useState(logEntry?.acquired?.nota  || '');
+
+  const [editLost, setEditLost] = useState(false);
+  const [lostData, setLostData] = useState(logEntry?.lost?.data || '');
+  const [lostTipo, setLostTipo] = useState(logEntry?.lost?.tipo || '');
+  const [lostNota, setLostNota] = useState(logEntry?.lost?.nota || '');
+
+  const saveAcq = () => {
+    onSaveLog({ ...logEntry, equipId: obj.id, acquired: { data: acqData.trim(), tipo: acqTipo, nota: acqNota.trim() } });
+    setEditAcq(false);
+  };
+  const saveLost = () => {
+    onSaveLog({ ...logEntry, equipId: obj.id, lost: { data: lostData.trim(), tipo: lostTipo, nota: lostNota.trim() } });
+    setEditLost(false);
+    if (!isPast) onRemove(obj.id);
+  };
+
+  const acqColor = '#6ab675'; const lostColor = '#e07070';
+
+  return (
+    <div style={{ background: 'var(--surface2)', border: `1px solid ${isPast ? '#88888844' : 'var(--border)'}`, borderRadius: 'var(--r)', overflow: 'hidden', opacity: isPast ? .75 : 1 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px' }}>
+        <span style={{ fontSize: 16 }}>📦</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, color: 'var(--text)', fontFamily: "'Playfair Display', serif" }}>{obj.name}</div>
+          {obj.desc && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>{obj.desc.length > 60 ? obj.desc.slice(0, 60) + '…' : obj.desc}</div>}
+          {/* Mini log summary when closed */}
+          {!open && (logEntry?.acquired || logEntry?.lost) && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              {logEntry.acquired && (
+                <span style={{ fontSize: 10, color: acqColor }}>
+                  {logEntry.acquired.tipo ? t('dp.eq_tipo_' + logEntry.acquired.tipo) : '↑'}
+                  {logEntry.acquired.data ? ` · ${logEntry.acquired.data}` : ''}
+                </span>
+              )}
+              {logEntry.lost && (
+                <span style={{ fontSize: 10, color: lostColor }}>
+                  {logEntry.lost.tipo ? t('dp.eq_tipo_' + logEntry.lost.tipo) : '↓'}
+                  {logEntry.lost.data ? ` · ${logEntry.lost.data}` : ''}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <button onClick={() => setOpen(o => !o)}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11, opacity: .6, padding: '2px 4px', flexShrink: 0 }}
+          title={t('dp.eq_log_lbl')}
+          onMouseEnter={e => e.currentTarget.style.opacity = 1}
+          onMouseLeave={e => e.currentTarget.style.opacity = .6}>
+          {open ? '▾' : '▸'} {t('dp.eq_log_lbl')}
+        </button>
+        {!isPast && (
+          <button onClick={() => onRemove(obj.id)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, opacity: .4, flexShrink: 0 }}
+            title={t('dp.eq_remove_nolog')}
+            onMouseEnter={e => e.currentTarget.style.opacity = 1}
+            onMouseLeave={e => e.currentTarget.style.opacity = .4}>×</button>
+        )}
+      </div>
+
+      {/* Expanded log section */}
+      {open && (
+        <div style={{ padding: '0 12px 10px', borderTop: '1px solid var(--border)' }}>
+
+          {/* Acquisition */}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 10, color: acqColor, textTransform: 'uppercase', letterSpacing: '.06em' }}>{t('dp.eq_log_acquired')}</span>
+              {!editAcq && <button onClick={() => setEditAcq(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer', opacity: .6 }} onMouseEnter={e => e.currentTarget.style.opacity=1} onMouseLeave={e => e.currentTarget.style.opacity=.6}>✎</button>}
+            </div>
+            {logEntry?.acquired && !editAcq && (
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', background: 'var(--surface3)', borderRadius: 4, padding: '5px 8px' }}>
+                {logEntry.acquired.tipo && <span style={{ color: acqColor, marginRight: 6 }}>{t('dp.eq_tipo_' + logEntry.acquired.tipo)}</span>}
+                {logEntry.acquired.data && <span style={{ color: 'var(--gold)', fontFamily: "'Playfair Display', serif", marginRight: 6 }}>{logEntry.acquired.data}</span>}
+                {logEntry.acquired.nota && <span style={{ color: 'var(--text-muted)' }}>{logEntry.acquired.nota}</span>}
+              </div>
+            )}
+            {(!logEntry?.acquired || editAcq) && (
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                <select value={acqTipo} onChange={e => setAcqTipo(e.target.value)}
+                  style={{ flex: '0 0 120px', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 6px', outline: 'none' }}>
+                  <option value="">{t('dp.eq_log_tipo_ph')}</option>
+                  {ACQ_TIPI.map(v => <option key={v} value={v}>{t('dp.eq_tipo_' + v)}</option>)}
+                </select>
+                <EventDateInput value={acqData} onChange={setAcqData} placeholder={t('dp.eq_log_data_ph')} inputStyle={{ fontSize: 12, padding: '4px 6px' }} />
+                <input type="text" placeholder={t('dp.eq_log_nota_ph')} value={acqNota} onChange={e => setAcqNota(e.target.value)}
+                  style={{ flex: '2 1 110px', minWidth: 0, boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 6px', outline: 'none' }} />
+                <button onClick={saveAcq}
+                  style={{ padding: '4px 10px', background: 'var(--surface3)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: acqColor, cursor: 'pointer', fontSize: 12, fontFamily: "'Crimson Pro', serif", flexShrink: 0 }}>
+                  {t('dp.eq_log_save')}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Loss */}
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 10, color: lostColor, textTransform: 'uppercase', letterSpacing: '.06em' }}>{t('dp.eq_log_lost')}</span>
+              {!editLost && !logEntry?.lost && !isPast && <button onClick={() => setEditLost(true)} style={{ background: 'none', border: 'none', color: lostColor, fontSize: 11, cursor: 'pointer', opacity: .7 }} onMouseEnter={e => e.currentTarget.style.opacity=1} onMouseLeave={e => e.currentTarget.style.opacity=.7}>{t('dp.eq_log_lost_btn')}</button>}
+            </div>
+            {logEntry?.lost && !editLost && (
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', background: 'var(--surface3)', borderRadius: 4, padding: '5px 8px' }}>
+                {logEntry.lost.tipo && <span style={{ color: lostColor, marginRight: 6 }}>{t('dp.eq_tipo_' + logEntry.lost.tipo)}</span>}
+                {logEntry.lost.data && <span style={{ color: 'var(--gold)', fontFamily: "'Playfair Display', serif", marginRight: 6 }}>{logEntry.lost.data}</span>}
+                {logEntry.lost.nota && <span style={{ color: 'var(--text-muted)' }}>{logEntry.lost.nota}</span>}
+              </div>
+            )}
+            {editLost && (
+              <div>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 6 }}>
+                  <select value={lostTipo} onChange={e => setLostTipo(e.target.value)}
+                    style={{ flex: '0 0 120px', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 6px', outline: 'none' }}>
+                    <option value="">{t('dp.eq_log_tipo_ph')}</option>
+                    {LOST_TIPI.map(v => <option key={v} value={v}>{t('dp.eq_tipo_' + v)}</option>)}
+                  </select>
+                  <EventDateInput value={lostData} onChange={setLostData} placeholder={t('dp.eq_log_data_ph')} inputStyle={{ fontSize: 12, padding: '4px 6px' }} />
+                  <input type="text" placeholder={t('dp.eq_log_nota_ph')} value={lostNota} onChange={e => setLostNota(e.target.value)}
+                    style={{ flex: '2 1 110px', minWidth: 0, boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '4px 6px', outline: 'none' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setEditLost(false)} style={{ padding: '4px 10px', background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12 }}>✕</button>
+                  <button onClick={saveLost}
+                    style={{ padding: '4px 12px', background: '#3a1515', border: '1px solid #e0707066', borderRadius: 'var(--r)', color: lostColor, cursor: 'pointer', fontSize: 12, fontFamily: "'Crimson Pro', serif" }}>
+                    {isPast ? t('dp.eq_log_save') : t('dp.eq_log_lost_save')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EquipTab({ el, updateEl, elements, showToast }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -246,6 +394,14 @@ function EquipTab({ el, updateEl, elements, showToast }) {
     !(el.equip || []).includes(o.id) &&
     (!query || o.name.toLowerCase().includes(query.toLowerCase()))
   );
+
+  const getLog = (objId) => (el.equipLog || []).find(e => e.equipId === objId) || null;
+
+  const saveLog = async (entry) => {
+    const prev = (el.equipLog || []).filter(e => e.equipId !== entry.equipId);
+    await updateEl(el.id, { equipLog: [...prev, entry] });
+    showToast(t('dp.eq_log_toast'));
+  };
 
   const handleAdd = async (objId) => {
     await updateEl(el.id, { equip: [...(el.equip || []), objId], tags: [...(el.tags || []).filter(t => tagId(t) !== objId), { id: objId, rel: 'Equipaggiamento', importance: 'bassa' }] });
@@ -262,6 +418,12 @@ function EquipTab({ el, updateEl, elements, showToast }) {
     showToast(t('dp.eq_toast_removed'));
   };
 
+  // Items that have a "lost" log entry but are no longer in equip
+  const pastEquip = (el.equipLog || [])
+    .filter(e => e.lost && !(el.equip || []).includes(e.equipId))
+    .map(e => ({ obj: oggetti.find(o => o.id === e.equipId), entry: e }))
+    .filter(x => x.obj);
+
   return (
     <div className="dp-sec">
       <div className="dp-lbl">{t('dp.eq_title')}</div>
@@ -272,20 +434,27 @@ function EquipTab({ el, updateEl, elements, showToast }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
           {equipped.map(obj => (
-            <div key={obj.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '9px 12px' }}>
-              <span style={{ fontSize: 16 }}>📦</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, color: 'var(--text)', fontFamily: "'Playfair Display', serif" }}>{obj.name}</div>
-                {obj.desc && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>{obj.desc.length > 60 ? obj.desc.slice(0, 60) + '…' : obj.desc}</div>}
-              </div>
-              <button onClick={() => handleRemove(obj.id)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, opacity: .5 }}
-                onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                onMouseLeave={e => e.currentTarget.style.opacity = .5}>×</button>
-            </div>
+            <EquipLogRow key={obj.id} obj={obj} logEntry={getLog(obj.id)}
+              onSaveLog={saveLog} onRemove={handleRemove} isPast={false} />
           ))}
         </div>
       )}
+
+      {/* Past equipment */}
+      {pastEquip.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+            {t('dp.eq_past_title')}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {pastEquip.map(({ obj, entry }) => (
+              <EquipLogRow key={obj.id} obj={obj} logEntry={entry}
+                onSaveLog={saveLog} onRemove={handleRemove} isPast={true} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}>
         <div className="dp-lbl" style={{ marginBottom: 8 }}>{t('dp.eq_add_lbl')}</div>
         <div style={{ position: 'relative' }}>

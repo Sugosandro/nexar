@@ -541,8 +541,13 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
         });
 
         if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error?.message || `HTTP ${response.status}`);
+          let errMsg = `HTTP ${response.status}`;
+          try {
+            const err = await response.json();
+            errMsg = err.error?.message || errMsg;
+          } catch { /* risposta non-JSON (es. Vite 503 in dev mode) */ }
+          if (response.status === 503) errMsg += t('analisi.err_503_hint');
+          throw new Error(errMsg);
         }
 
         const data = await response.json();

@@ -1,7 +1,7 @@
 import { useState, useMemo, Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorld } from '../hooks/useWorld';
-import ElementModal from '../components/ElementModal';
+import { useWorld, tagId, tagObj } from '../hooks/useWorld';
+import ElementModal, { REL_STATO_COLOR } from '../components/ElementModal';
 
 const parseDate = (str) => {
   if (!str) return null;
@@ -296,10 +296,11 @@ export default function TimelineView({ onOpenElement, showToast }) {
   const [typeFilter, setTypeFilter] = useState('');
   const [fromFilter, setFromFilter] = useState('');
   const [toFilter,   setToFilter]   = useState('');
-  const [showModal,  setShowModal]  = useState(false);
-  const [expanded,   setExpanded]   = useState(new Set());
-  const [leftCat,    setLeftCat]    = useState('');
-  const [rightCat,   setRightCat]   = useState('');
+  const [showModal,     setShowModal]     = useState(false);
+  const [expanded,      setExpanded]      = useState(new Set());
+  const [leftCat,       setLeftCat]       = useState('');
+  const [rightCat,      setRightCat]      = useState('');
+  const [showTagEvents, setShowTagEvents] = useState(false);
 
   const toggleExpand = (id) => setExpanded(prev => {
     const next = new Set(prev);
@@ -308,6 +309,28 @@ export default function TimelineView({ onOpenElement, showToast }) {
   });
 
   const allEvents = elements.filter(e => e.cat === 'event');
+
+  // Deriva gli eventi di relazione da tag.storia con campo data
+  const tagEvents = useMemo(() => {
+    const seen = new Set();
+    const evs  = [];
+    for (const el of elements) {
+      for (const tag of (el.tags || [])) {
+        const to    = tagObj(tag);
+        const otherId = tagId(tag);
+        const other = elements.find(e => e.id === otherId);
+        for (const s of (to.storia || [])) {
+          if (!s.data) continue;
+          // deduplication: same pair + same ts
+          const key = [el.id < otherId ? el.id : otherId, el.id < otherId ? otherId : el.id, s.ts].join('-');
+          if (seen.has(key)) continue;
+          seen.add(key);
+          evs.push({ key, date: s.data, stato: s.stato, nota: s.nota, elA: el, elB: other, ts: s.ts });
+        }
+      }
+    }
+    return evs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  }, [elements]);
 
   const filtered = useMemo(() => {
     let evs = allEvents;
@@ -421,6 +444,39 @@ export default function TimelineView({ onOpenElement, showToast }) {
           getSide={getSide} useSplit={useSplit}
           onOpenElement={onOpenElement}
         />
+      )}
+
+      {/* ── Tag events section ── */}
+      {tagEvents.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <button
+            onClick={() => setShowTagEvents(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0', width: '100%', textAlign: 'left' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', transition: 'transform .15s', transform: showTagEvents ? 'rotate(90deg)' : 'none' }}>▸</span>
+            <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', color: showTagEvents ? 'var(--text)' : 'var(--text-muted)' }}>
+              {t('tl.tag_events_toggle')} ({tagEvents.length})
+            </span>
+          </button>
+          {showTagEvents && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {tagEvents.map(ev => {
+                const col = REL_STATO_COLOR[ev.stato] || '#888';
+                return (
+                  <div key={ev.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 12px', background: 'var(--surface)', border: `1px solid ${col}33`, borderLeft: `3px solid ${col}`, borderRadius: 6 }}>
+                    <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 13, color: 'var(--gold)', flexShrink: 0, minWidth: 80 }}>{ev.date}</span>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: col, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: col, flexShrink: 0 }}>{ev.stato}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ev.elA?.name}
+                      {ev.elB && <> <span style={{ color: 'var(--text-muted)' }}>↔</span> {ev.elB.name}</>}
+                    </span>
+                    {ev.nota && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic', flexShrink: 0, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nota}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {showModal && (

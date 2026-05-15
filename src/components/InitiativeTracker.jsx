@@ -20,7 +20,7 @@ export default function InitiativeTracker({ open, onClose }) {
   const [fName, setFName] = useState('');
   const [fInit, setFInit] = useState('');
   const [fHp,   setFHp]   = useState('');
-  const [fMod,  setFMod]  = useState('0');
+  const [fMod,  setFMod]  = useState('');
   const [fNpc,  setFNpc]  = useState(false);
   const [cQuery, setCQuery] = useState('');
   const [cOpen,  setCOpen]  = useState(false);
@@ -267,10 +267,10 @@ export default function InitiativeTracker({ open, onClose }) {
             style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 8px', outline: 'none' }} />
           <input type="number" placeholder={t('init.init_ph')} value={fInit}
             onChange={e => setFInit(e.target.value)}
-            style={{ flex: '0 0 52px', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 6px', outline: 'none', textAlign: 'center' }} />
+            style={{ flex: '0 0 50px', width: '50px', minWidth: '0', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 2px', outline: 'none', textAlign: 'center' }} />
           <input id="initHpInput" type="number" placeholder="HP" value={fHp}
             onChange={e => setFHp(e.target.value)}
-            style={{ flex: '0 0 52px', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 6px', outline: 'none', textAlign: 'center' }} />
+            style={{ flex: '0 0 50px', width: '50px', minWidth: '0', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 2px', outline: 'none', textAlign: 'center' }} />
         </div>
 
         <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>

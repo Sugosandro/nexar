@@ -103,7 +103,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
       <header className="app-header">
         <button className="mob-menu-btn" onClick={() => setSidebarOpen(s => !s)} aria-label="Menu">☰</button>
         <div className="logo">Nexar</div>
-        <button
+        <button className="mob-hide"
           onClick={() => setCatModal(true)}
           style={{
             flexShrink: 0, padding: '5px 13px', fontSize: 13, cursor: 'pointer',
@@ -125,8 +125,8 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
         <ViewHint viewId={curView} />
         <GlobalSearch onOpen={openPanel} />
         <div className="header-acts">
-          <button className="btn-sm" onClick={() => setSettingsOpen(true)} title={t('settings.title')}>⚙</button>
-          <button
+          <button className="btn-sm mob-hide" onClick={() => setSettingsOpen(true)} title={t('settings.title')}>⚙</button>
+          <button className="mob-hide"
             onClick={() => setInitOpen(v => !v)}
             style={{
               flexShrink: 0, padding: '5px 13px', fontSize: 13, cursor: 'pointer',
@@ -150,6 +150,10 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
         <Sidebar
           onSelectElement={(id) => { openPanel('element', id); setSidebarOpen(false); }}
           activeId={panel?.type === 'element' ? panel.id : null}
+          onCatModal={() => { setCatModal(true); setSidebarOpen(false); }}
+          onInitOpen={() => { setInitOpen(v => !v); setSidebarOpen(false); }}
+          onSettingsOpen={() => { setSettingsOpen(true); setSidebarOpen(false); }}
+          initOpen={initOpen}
         />
       </aside>
 

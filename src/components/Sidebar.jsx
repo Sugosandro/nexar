@@ -6,7 +6,7 @@ const IMP_ORDER  = { principale: 0, primario: 1, secondario: 2, minore: 3 };
 const IMP_LABEL  = { principale: '⭐⭐⭐', primario: '⭐⭐', secondario: '⭐', minore: '·' };
 const IMP_COLOR  = { principale: '#f0c060', primario: '#b88fc4', secondario: '#7ab8d4', minore: '#555' };
 
-export default function Sidebar({ onSelectElement, activeElId }) {
+export default function Sidebar({ onSelectElement, activeElId, onCatModal, onInitOpen, onSettingsOpen, initOpen }) {
   const { t } = useTranslation();
   const { elements, allCats, elColor } = useWorld();
   const [search,    setSearch]    = useState('');
@@ -115,7 +115,7 @@ export default function Sidebar({ onSelectElement, activeElId }) {
         <input type="text" placeholder={t('sidebar.search_placeholder')} value={search}
           onChange={e => setSearch(e.target.value)} />
       </div>
-      <div className="sb-list">
+      <div className="sb-list sb-list-mob">
         {cats.map(cat => {
           const tree = buildTree(cat.id);
           if (!tree) return null;
@@ -165,6 +165,18 @@ export default function Sidebar({ onSelectElement, activeElId }) {
             </div>
           );
         })}
+      </div>
+      <div className="sb-footer">
+        <button className="sb-footer-btn" onClick={onCatModal}>
+          <span>🗂</span> {t('header.categories_btn')}
+        </button>
+        <button className="sb-footer-btn sb-footer-tracker" onClick={onInitOpen}
+          style={{ color: initOpen ? '#e07070' : '#c07070', borderColor: initOpen ? 'rgba(220,80,80,.5)' : 'rgba(200,50,50,.25)', background: initOpen ? 'rgba(200,50,50,.2)' : 'rgba(200,50,50,.08)' }}>
+          <span>⚔</span> {t('init.title')}
+        </button>
+        <button className="sb-footer-btn" onClick={onSettingsOpen}>
+          <span>⚙</span> {t('settings.title')}
+        </button>
       </div>
     </>
   );

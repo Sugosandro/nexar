@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { tagId, tagObj, sortTags, TAG_IMP_COLOR, TAG_IMP_LABEL } from '../hooks/useWorld';
@@ -31,73 +31,97 @@ function ImageCarousel({ images }) {
 function ChangelogTab({ el, updateEl, elements, showToast }) {
   const { t } = useTranslation();
   const luoghi = elements.filter(e => e.cat === 'place');
-  const [newDate,  setNewDate]  = useState('');
-  const [newPlace, setNewPlace] = useState('');
-  const [newText,  setNewText]  = useState('');
+  const [query, setQuery] = useState('');
+  const [open,  setOpen]  = useState(false);
 
-  const handleAdd = async () => {
-    if (!newText.trim()) return;
-    const entry = { date: newDate.trim(), placeId: newPlace || null, text: newText.trim() };
-    await updateEl(el.id, { changelog: [...(el.changelog || []), entry] });
-    setNewDate(''); setNewPlace(''); setNewText('');
-    showToast(t('dp.cl_toast_added'));
+  const linkedEvents = elements
+    .filter(e => e.cat === 'event' && (e.eventEls || []).includes(el.id))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const linkedIds = new Set(linkedEvents.map(e => e.id));
+
+  const availableEvents = elements
+    .filter(e => e.cat === 'event' && !linkedIds.has(e.id) &&
+      (!query || e.name.toLowerCase().includes(query.toLowerCase()) || (e.date || '').includes(query)))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  const handleLink = async (ev) => {
+    await updateEl(ev.id, { eventEls: [...(ev.eventEls || []), el.id] });
+    setQuery(''); setOpen(false);
+    showToast(t('dp.cl_link_toast'));
   };
 
-  const handleDelete = async (i) => {
+  const handleUnlink = async (ev) => {
+    await updateEl(ev.id, { eventEls: (ev.eventEls || []).filter(id => id !== el.id) });
+    showToast(t('dp.cl_unlink_toast'));
+  };
+
+  const handleDeleteCl = async (i) => {
     await updateEl(el.id, { changelog: (el.changelog || []).filter((_, idx) => idx !== i) });
     showToast(t('dp.cl_toast_deleted'));
   };
 
+  const timeline = [
+    ...linkedEvents.map(ev => ({ type: 'event', date: ev.date, name: ev.name, place: luoghi.find(l => l.id === ev.eventPlace), ev })),
+    ...(el.changelog || []).map((c, i) => ({ type: 'cl', date: c.date, text: c.text, place: luoghi.find(l => l.id === c.placeId), idx: i })),
+  ].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
   return (
     <div className="dp-sec">
       <div className="dp-lbl">{t('dp.cl_title')}</div>
-      <div className="changelog">
-        {(el.changelog || []).length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13, padding: '8px 0' }}>
-            {t('dp.cl_empty')}
-          </p>
-        ) : (
-          [...(el.changelog || [])].map((c, i) => {
-            const luogo = luoghi.find(l => l.id === c.placeId);
-            return (
-              <div key={i} className="cl-entry" style={{ position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  {c.date && <span className="cl-date" style={{ margin: 0 }}>{c.date}</span>}
-                  {luogo && (
-                    <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 20, background: 'var(--place-dim)', color: 'var(--place)' }}>
-                      📍 {luogo.name}
-                    </span>
-                  )}
-                  <button onClick={() => handleDelete(i)}
-                    style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, opacity: .5, padding: '0 2px' }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={e => e.currentTarget.style.opacity = .5}>×</button>
-                </div>
-                <div className="cl-text">{c.text}</div>
+      {timeline.length === 0 ? (
+        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13, padding: '8px 0' }}>
+          {t('dp.cl_no_history')}
+        </p>
+      ) : (
+        <div className="changelog">
+          {timeline.map((item, i) => (
+            <div key={i} className="cl-entry" style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                {item.date && <span className="cl-date" style={{ margin: 0 }}>{item.date}</span>}
+                {item.place && (
+                  <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 20, background: 'var(--place-dim)', color: 'var(--place)' }}>
+                    📍 {item.place.name}
+                  </span>
+                )}
+                {item.type === 'event' && (
+                  <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 20, background: 'var(--gold-glow)', color: 'var(--gold)' }}>
+                    ⏳ {t('dp.cl_event_badge')}
+                  </span>
+                )}
+                <button
+                  onClick={() => item.type === 'event' ? handleUnlink(item.ev) : handleDeleteCl(item.idx)}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, opacity: .5, padding: '0 2px' }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                  onMouseLeave={e => e.currentTarget.style.opacity = .5}>×</button>
               </div>
-            );
-          })
-        )}
-      </div>
+              <div className="cl-text">{item.type === 'event' ? item.name : item.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-        <div className="dp-lbl" style={{ marginBottom: 8 }}>{t('dp.cl_add_lbl')}</div>
-        <input className="fi" style={{ fontSize: 12, marginBottom: 6 }}
-          placeholder={t('dp.cl_date_ph')} value={newDate}
-          onChange={e => {
-            let v = e.target.value.replace(/[^\d/]/g, '');
-            if (v.length === 2 && !v.includes('/')) v += '/';
-            if (v.length === 5 && v.split('/').length === 2) v += '/';
-            if (v.length > 10) v = v.slice(0, 10);
-            setNewDate(v);
-          }} maxLength={10} autoComplete="off" />
-        <select className="fs" style={{ fontSize: 12, marginBottom: 6 }} value={newPlace} onChange={e => setNewPlace(e.target.value)}>
-          <option value="">{t('dp.cl_place_ph')}</option>
-          {luoghi.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
-        <textarea className="ft" style={{ fontSize: 12, minHeight: 60, marginBottom: 6 }}
-          placeholder={t('dp.cl_text_ph')} value={newText} onChange={e => setNewText(e.target.value)} />
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn-p" style={{ fontSize: 11, padding: '5px 12px' }} onClick={handleAdd}>{t('dp.cl_add_btn')}</button>
+        <div className="dp-lbl" style={{ marginBottom: 8 }}>{t('dp.cl_link_lbl')}</div>
+        <div style={{ position: 'relative' }}>
+          <input className="fi" style={{ fontSize: 12, marginBottom: 0 }}
+            placeholder={t('dp.cl_link_ph')} value={query}
+            onChange={e => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            autoComplete="off" />
+          {open && availableEvents.length > 0 && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, background: 'var(--surface)', border: '1px solid var(--border-light)', borderRadius: 'var(--r)', boxShadow: '0 8px 24px rgba(0,0,0,.5)', zIndex: 700, maxHeight: 220, overflowY: 'auto' }}>
+              {availableEvents.map(ev => (
+                <div key={ev.id} onMouseDown={() => handleLink(ev)}
+                  style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'baseline' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}>
+                  <span style={{ color: 'var(--gold)', fontFamily: "'Playfair Display', serif", flexShrink: 0, minWidth: 60 }}>{ev.date}</span>
+                  <span style={{ color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -383,10 +407,21 @@ function EquipLogRow({ obj, logEntry, onSaveLog, onRemove, isPast }) {
   );
 }
 
-function EquipTab({ el, updateEl, elements, showToast }) {
+const COINS = [
+  { key: 'pp', label: 'PP', color: '#b0c4de' },
+  { key: 'gp', label: 'GP', color: '#ffd700' },
+  { key: 'sp', label: 'SP', color: '#c0c0c0' },
+  { key: 'cp', label: 'CP', color: '#c8844a' },
+];
+
+function EquipTab({ el, updateEl, addEl, elements, showToast }) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
-  const [open,  setOpen]  = useState(false);
+  const [query,        setQuery]        = useState('');
+  const [open,         setOpen]         = useState(false);
+  const [newEquipOpen, setNewEquipOpen] = useState(false);
+  const [localCoins,   setLocalCoins]   = useState(() => el.coins || {});
+
+  useEffect(() => { setLocalCoins(el.coins || {}); }, [el.id]);
 
   const oggetti   = elements.filter(e => e.cat === 'object');
   const equipped  = (el.equip || []).map(id => oggetti.find(o => o.id === id)).filter(Boolean);
@@ -416,6 +451,22 @@ function EquipTab({ el, updateEl, elements, showToast }) {
   const handleRemove = async (objId) => {
     await updateEl(el.id, { equip: (el.equip || []).filter(id => id !== objId) });
     showToast(t('dp.eq_toast_removed'));
+  };
+
+  const adjustCoin = (key, delta) => {
+    setLocalCoins(prev => {
+      const next = { ...prev, [key]: Math.max(0, (prev[key] || 0) + delta) };
+      updateEl(el.id, { coins: next });
+      return next;
+    });
+  };
+
+  const handleCoinInput = (key, val) => {
+    setLocalCoins(prev => ({ ...prev, [key]: Math.max(0, parseInt(val) || 0) }));
+  };
+
+  const handleCoinBlur = (key) => {
+    updateEl(el.id, { coins: { ...(el.coins || {}), [key]: localCoins[key] || 0 } });
   };
 
   // Items that have a "lost" log entry but are no longer in equip
@@ -456,7 +507,25 @@ function EquipTab({ el, updateEl, elements, showToast }) {
       )}
 
       <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-        <div className="dp-lbl" style={{ marginBottom: 8 }}>{t('dp.eq_add_lbl')}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div className="dp-lbl" style={{ marginBottom: 0 }}>{t('dp.eq_add_lbl')}</div>
+          <button onClick={() => setNewEquipOpen(true)}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--gold)', fontSize: 11, padding: '3px 9px', cursor: 'pointer', fontFamily: "'Crimson Pro', serif" }}>
+            + {t('dp.eq_new_obj_btn')}
+          </button>
+        </div>
+        {newEquipOpen && (
+          <ElementModal
+            defaultCat="object"
+            onSave={async (data) => {
+              const newId = await addEl(data);
+              if (newId) await handleAdd(newId);
+              setNewEquipOpen(false);
+              showToast(t('dp.eq_new_obj_toast'));
+            }}
+            onClose={() => setNewEquipOpen(false)}
+          />
+        )}
         <div style={{ position: 'relative' }}>
           <input className="fi" style={{ fontSize: 13, marginBottom: 0 }}
             placeholder={t('dp.eq_search_ph')} value={query}
@@ -485,6 +554,33 @@ function EquipTab({ el, updateEl, elements, showToast }) {
               }
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Coin tracker */}
+      <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+        <div className="dp-lbl" style={{ marginBottom: 10 }}>{t('dp.eq_coins_title')}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {COINS.map(({ key, label, color }) => {
+            const val = localCoins[key] || 0;
+            return (
+              <div key={key} style={{ flex: 1, background: 'var(--surface2)', border: `1px solid ${color}44`, borderRadius: 'var(--r)', padding: '8px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11, color, fontWeight: 700, letterSpacing: '.04em' }}>{label}</span>
+                <input
+                  type="number" min="0" value={val}
+                  onChange={e => handleCoinInput(key, e.target.value)}
+                  onBlur={() => handleCoinBlur(key)}
+                  style={{ width: '100%', textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontFamily: "'Playfair Display', serif", fontSize: 16, padding: '2px 0', outline: 'none', boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={() => adjustCoin(key, -1)} disabled={val === 0}
+                    style={{ width: 24, height: 24, border: '1px solid var(--border)', borderRadius: 4, background: 'var(--surface)', color: val === 0 ? 'var(--text-muted)' : 'var(--text)', cursor: val === 0 ? 'default' : 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                  <button onClick={() => adjustCoin(key, 1)}
+                    style={{ width: 24, height: 24, border: `1px solid ${color}66`, borderRadius: 4, background: color + '18', color, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -691,7 +787,7 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
             <PowersTab el={el} updateEl={updateEl} magie={magie} elements={elements} showToast={showToast} />
           )}
           {activeTab === 'equip' && (
-            <EquipTab el={el} updateEl={updateEl} elements={elements} showToast={showToast} />
+            <EquipTab el={el} updateEl={updateEl} addEl={addEl} elements={elements} showToast={showToast} />
           )}
           {activeTab === 'changelog' && (
             <ChangelogTab el={el} updateEl={updateEl} elements={elements} showToast={showToast} />

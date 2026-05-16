@@ -140,7 +140,7 @@ const IMP_OPTS = [
 
 export default function ElementModal({ defaultCat = 'char', initialData = null, onSave, onClose }) {
   const { t } = useTranslation();
-  const { allCats, elements, sessioni } = useWorld();
+  const { allCats, elements, sessioni, fazioni, updateFazione } = useWorld();
   const cats = allCats();
 
   const [cat,      setCat]      = useState(initialData?.cat    || defaultCat);
@@ -161,6 +161,10 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
   const curCat      = cats.find(c => c.id === cat);
   const subsList    = curCat?.subs || [];
   const extraFields = EXTRA_FIELDS[cat] || [];
+
+  const [selectedFazioni, setSelectedFazioni] = useState(
+    () => fazioni.filter(f => (f.members || []).includes(initialData?.id)).map(f => f.id)
+  );
 
   const [eventPlace, setEventPlace] = useState(initialData?.eventPlace || '');
   const [eventEls,   setEventEls]   = useState(initialData?.eventEls   || []);
@@ -191,8 +195,18 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
   const addTag    = (id) => { setTags(prev => [...prev, { id, rel: '', importance: 'media' }]); setTagQuery(''); setTagOpen(false); setEditingTag(id); };
   const removeTag = (id) => { setTags(prev => prev.filter(t => tagId(t) !== id)); setEditingTag(null); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) { alert(t('common.name_required')); return; }
+    if (initialData?.id && fazioni.length > 0) {
+      for (const faz of fazioni) {
+        const wasMember = (faz.members || []).includes(initialData.id);
+        const isMember  = selectedFazioni.includes(faz.id);
+        if (wasMember && !isMember)
+          await updateFazione(faz.id, { members: (faz.members || []).filter(id => id !== initialData.id) });
+        else if (!wasMember && isMember)
+          await updateFazione(faz.id, { members: [...(faz.members || []), initialData.id] });
+      }
+    }
     const data = {
       cat, sub, name: name.trim(), status, desc, extra, image: images[0] || '', images, tags, date,
       importance,
@@ -492,6 +506,27 @@ export default function ElementModal({ defaultCat = 'char', initialData = null, 
                 />
               </div>
             ))}
+          </div>
+        )}
+
+        {fazioni.length > 0 && (
+          <div className="fg">
+            <label className="fl">{t('element.faz_lbl')}</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {fazioni.map(faz => {
+                const active = selectedFazioni.includes(faz.id);
+                return (
+                  <button key={faz.id} type="button"
+                    onClick={() => setSelectedFazioni(prev => active ? prev.filter(id => id !== faz.id) : [...prev, faz.id])}
+                    style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, cursor: 'pointer', fontFamily: "'Crimson Pro', serif",
+                      background: active ? '#4a381022' : 'var(--surface2)',
+                      border: `1px solid ${active ? '#f0c06088' : 'var(--border)'}`,
+                      color: active ? '#f0c060' : 'var(--text-muted)', transition: 'all .15s' }}>
+                    ⚔ {faz.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

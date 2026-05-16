@@ -32,7 +32,7 @@ export const tagId  = (t) => (typeof t === 'string' ? t : t?.id);
 // Converti tag in oggetto normalizzato
 export const tagObj = (t) => typeof t === 'string'
   ? { id: t, rel: '', importance: 'Media' }
-  : { id: t.id, rel: t.rel || '', importance: t.importance || 'Media' };
+  : { ...t, rel: t.rel || '', importance: t.importance || 'Media' };
 // Ordina tag per importanza
 export const sortTags = (tags) => {
   const order = { Alta: 0, Media: 1, Bassa: 2, Trascurabile: 3 };

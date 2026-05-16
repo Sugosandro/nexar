@@ -27,34 +27,6 @@ export default function WorldView({ onOpenElement, showToast }) {
   }, [elements]); // eslint-disable-line
 
   // ── Retroactive changelog sync ────────────────────────────────────────────
-  const syncDone = useRef(false);
-  useEffect(() => {
-    if (syncDone.current || !elements.length) return;
-    syncDone.current = true;
-    const events = elements.filter(e =>
-      e.cat === 'event' && e.eventPlace && e.date && e.eventEls?.length
-    );
-    if (!events.length) return;
-    (async () => {
-      let added = 0;
-      for (const ev of events) {
-        for (const elId of ev.eventEls) {
-          const el = elements.find(e => e.id === elId);
-          if (!el) continue;
-          const exists = (el.changelog || []).some(
-            c => c.date === ev.date && c.placeId === ev.eventPlace
-          );
-          if (!exists) {
-            await updateEl(elId, {
-              changelog: [...(el.changelog || []), { date: ev.date, placeId: ev.eventPlace, text: t('dp.el_present_in', { name: ev.name }) }],
-            });
-            added++;
-          }
-        }
-      }
-      if (added > 0) showToast(t('wv.sync_toast', { count: added }));
-    })();
-  }, [elements]); // eslint-disable-line
 
   const [search,       setSearch]       = useState('');
   const [catFilter,    setCatFilter]    = useState('');
@@ -304,14 +276,6 @@ export default function WorldView({ onOpenElement, showToast }) {
                 date: birthDate, tags: [], status: 'done',
                 extra: {}, powers: [], equip: [], changelog: [], notes: '',
               });
-            }
-            if (data.cat === 'event' && data.eventPlace && data.date && data.eventEls?.length) {
-              for (const elId of data.eventEls) {
-                const el = elements.find(e => e.id === elId);
-                if (!el) continue;
-                const exists = (el.changelog || []).some(c => c.date === data.date && c.placeId === data.eventPlace);
-                if (!exists) await updateEl(elId, { changelog: [...(el.changelog || []), { date: data.date, placeId: data.eventPlace, text: t('dp.el_present_in', { name: data.name }) }] });
-              }
             }
             setShowModal(false);
             showToast(t('wv.toast_created'));

@@ -60,10 +60,11 @@ function ChangelogTab({ el, updateEl, elements, showToast }) {
     showToast(t('dp.cl_toast_deleted'));
   };
 
+  const parseDMY = (d = '') => { const [dd, mm, yy] = d.split('/').map(Number); return (yy||0)*10000 + (mm||0)*100 + (dd||0); };
   const timeline = [
     ...linkedEvents.map(ev => ({ type: 'event', date: ev.date, name: ev.name, place: luoghi.find(l => l.id === ev.eventPlace), ev })),
     ...(el.changelog || []).map((c, i) => ({ type: 'cl', date: c.date, text: c.text, place: luoghi.find(l => l.id === c.placeId), idx: i })),
-  ].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  ].sort((a, b) => parseDMY(a.date) - parseDMY(b.date));
 
   return (
     <div className="dp-sec">
@@ -733,34 +734,43 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
                             <span style={{ fontSize: 11, color: impCol, flexShrink: 0 }}>{TAG_IMP_LABEL[to.importance]}</span>
                             <span style={{ fontSize: 10, color: 'var(--text-muted)', transition: 'transform .15s', transform: isExp ? 'rotate(180deg)' : 'none' }}>▼</span>
                           </div>
-                          {isExp && (
-                            <div style={{ margin: '2px 0 0', padding: '8px 12px', background: 'var(--surface2)', borderRadius: 'var(--r)', borderTop: `2px solid ${tcolor}44` }}>
-                              {tagged.desc
-                                ? <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 6 }}>{tagged.desc.length > 200 ? tagged.desc.slice(0, 200) + '…' : tagged.desc}</div>
-                                : <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 6 }}>{t('dp.no_desc')}</div>
-                              }
-                              {(to.storia || []).length > 0 && (
-                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, marginBottom: 6 }}>
-                                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{t('rel.storia_lbl')}</div>
-                                  {(to.storia || []).map((s, si) => {
-                                    const sess = sessioni.find(ss => ss.id === s.sessione);
-                                    return (
-                                      <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginBottom: 3 }}>
-                                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: REL_STATO_COLOR[s.stato] || '#888', flexShrink: 0 }} />
-                                        <span style={{ color: REL_STATO_COLOR[s.stato] || '#888', fontSize: 11, flexShrink: 0 }}>{t('rel.stato_' + s.stato)}</span>
-                                        {sess && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>S{sess.numero}</span>}
-                                        {s.nota && <span style={{ color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nota}</span>}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }}
-                                onClick={e => { e.stopPropagation(); onOpen('element', tagged.id); }}>
-                                {t('dp.open_card')}
-                              </button>
-                            </div>
-                          )}
+                          {isExp && (() => {
+                            // Merge storia from both sides of the tag (bidirectionality)
+                            const reverseTo = tagObj((tagged.tags || []).find(t => tagId(t) === el.id));
+                            const seenTs = new Set();
+                            const storia = [...(to.storia || []), ...(reverseTo.storia || [])]
+                              .filter(s => { const k = s.ts ?? s.nota ?? Math.random(); if (seenTs.has(k)) return false; seenTs.add(k); return true; })
+                              .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+                            return (
+                              <div style={{ margin: '2px 0 0', padding: '8px 12px', background: 'var(--surface2)', borderRadius: 'var(--r)', borderTop: `2px solid ${tcolor}44` }}>
+                                {tagged.desc
+                                  ? <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 6 }}>{tagged.desc.length > 200 ? tagged.desc.slice(0, 200) + '…' : tagged.desc}</div>
+                                  : <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 6 }}>{t('dp.no_desc')}</div>
+                                }
+                                {storia.length > 0 && (
+                                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 6, marginBottom: 6 }}>
+                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{t('rel.storia_lbl')}</div>
+                                    {storia.map((s, si) => {
+                                      const sess = sessioni.find(ss => ss.id === s.sessione);
+                                      return (
+                                        <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, marginBottom: 3, flexWrap: 'wrap' }}>
+                                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: REL_STATO_COLOR[s.stato] || '#888', flexShrink: 0 }} />
+                                          <span style={{ color: REL_STATO_COLOR[s.stato] || '#888', fontSize: 11, flexShrink: 0 }}>{t('rel.stato_' + s.stato)}</span>
+                                          {s.data && <span style={{ color: 'var(--gold)', fontFamily: "'Playfair Display', serif", fontSize: 11, flexShrink: 0 }}>{s.data}</span>}
+                                          {sess && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>S{sess.numero}</span>}
+                                          {s.nota && <span style={{ color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nota}</span>}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                <button className="btn-g" style={{ fontSize: 10, padding: '3px 9px' }}
+                                  onClick={e => { e.stopPropagation(); onOpen('element', tagged.id); }}>
+                                  {t('dp.open_card')}
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -818,16 +828,6 @@ export default function DetailPanel({ panel, onClose, onOpen, showToast }) {
                   date: birthDate, tags: [el.id], status: 'done',
                   extra: {}, powers: [], equip: [], changelog: [], notes: '',
                 });
-              }
-              if (data.cat === 'event' && data.eventPlace && data.date && data.eventEls?.length) {
-                for (const elId of data.eventEls) {
-                  const elTarget = elements.find(e => e.id === elId);
-                  if (!elTarget) continue;
-                  const alreadyExists = (elTarget.changelog || []).some(c => c.date === data.date && c.placeId === data.eventPlace);
-                  if (!alreadyExists) {
-                    await updateEl(elId, { changelog: [...(elTarget.changelog || []), { date: data.date, placeId: data.eventPlace, text: t('dp.el_present_in', { name: data.name }) }] });
-                  }
-                }
               }
               setEditing(false);
               showToast(t('dp.el_toast_saved'));

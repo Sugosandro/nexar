@@ -802,18 +802,6 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
           eventPlace: fields.eventPlace || ev.eventPlace || null,
           eventEls:   fields.eventEls || ev.eventEls || [],
         });
-        // Sync changelog per i nuovi elementi aggiunti
-        const placeId = fields.eventPlace || ev.eventPlace;
-        if (placeId && ev.date && fields.eventEls?.length) {
-          for (const elId of fields.eventEls) {
-            const el = elements.find(e => e.id === elId);
-            if (!el) continue;
-            const exists = (el.changelog || []).some(c => c.date === ev.date && c.placeId === placeId);
-            if (!exists) {
-              await updateEl(elId, { changelog: [...(el.changelog || []), { date: ev.date, placeId, text: t('dp.el_present_in', { name: ev.name }) }] });
-            }
-          }
-        }
         showToast(t('analisi.toast_ev_updated', { name: ev.name }));
       }
 
@@ -1436,15 +1424,6 @@ export default function AnalisiView({ onOpenElement, showToast, preloadText, onP
           defaultCat={acceptModal.dati?.cat || 'char'}
           onSave={async (data) => {
             await addEl(data);
-            // Sync changelog per eventi con partecipanti e luogo
-            if (data.cat === 'event' && data.eventPlace && data.date && data.eventEls?.length) {
-              for (const elId of data.eventEls) {
-                const el = elements.find(e => e.id === elId);
-                if (!el) continue;
-                const exists = (el.changelog || []).some(c => c.date === data.date && c.placeId === data.eventPlace);
-                if (!exists) await updateEl(elId, { changelog: [...(el.changelog || []), { date: data.date, placeId: data.eventPlace, text: t('dp.el_present_in', { name: data.name }) }] });
-              }
-            }
             await deleteProposal(uid, wid, acceptModal.id);
             setAcceptModal(null);
             showToast(t('analisi.toast_created_from_prop'));

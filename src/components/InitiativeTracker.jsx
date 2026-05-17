@@ -4,11 +4,38 @@ import { useWorld } from '../hooks/useWorld';
 
 function rollD20() { return Math.floor(Math.random() * 20) + 1; }
 
-let _uid = 0;
-const newId = () => String(++_uid);
+const newId = () => crypto.randomUUID();
+
+const CONDITIONS = [
+  { id: 'poisoned',      icon: '🤢', color: '#8fbd7c', it: 'Avvelenato',   en: 'Poisoned' },
+  { id: 'blinded',       icon: '🚫', color: '#777',    it: 'Accecato',     en: 'Blinded' },
+  { id: 'stunned',       icon: '💫', color: '#d4a84c', it: 'Stordito',     en: 'Stunned' },
+  { id: 'prone',         icon: '⬇',  color: '#7ab8d4', it: 'Prono',        en: 'Prone' },
+  { id: 'grappled',      icon: '✊',  color: '#c89fd4', it: 'Afferrato',    en: 'Grappled' },
+  { id: 'restrained',    icon: '⛓',  color: '#d4956a', it: 'Trattenuto',   en: 'Restrained' },
+  { id: 'paralyzed',     icon: '🗿',  color: '#a0a060', it: 'Paralizzato',  en: 'Paralyzed' },
+  { id: 'frightened',    icon: '😨',  color: '#e07070', it: 'Spaventato',   en: 'Frightened' },
+  { id: 'charmed',       icon: '💗',  color: '#c860b0', it: 'Affascinato',  en: 'Charmed' },
+  { id: 'deafened',      icon: '🔕',  color: '#777',    it: 'Assordato',    en: 'Deafened' },
+  { id: 'exhausted',     icon: '😴',  color: '#888',    it: 'Esausto',      en: 'Exhausted' },
+  { id: 'invisible',     icon: '👻',  color: '#a0d0c0', it: 'Invisibile',   en: 'Invisible' },
+  { id: 'petrified',     icon: '🪨',  color: '#a0a0a0', it: 'Pietrificato', en: 'Petrified' },
+  { id: 'incapacitated', icon: '💀',  color: '#555',    it: 'Incapacitato', en: 'Incapacitated' },
+];
+
+function DeathDot({ filled, color, onClick }) {
+  return (
+    <div onClick={onClick} style={{
+      width: 22, height: 22, borderRadius: '50%',
+      background: filled ? color : 'transparent',
+      border: `2px solid ${filled ? color : 'var(--border)'}`,
+      cursor: 'pointer', transition: 'all .15s', flexShrink: 0,
+    }} />
+  );
+}
 
 export default function InitiativeTracker({ open, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { elements, allCats, addEl } = useWorld();
 
   const [combatants, setCombatants] = useState([]);
@@ -16,14 +43,21 @@ export default function InitiativeTracker({ open, onClose }) {
   const [currentId,  setCurrentId]  = useState(null);
   const [minimized,  setMinimized]  = useState(false);
   const [savedIds,   setSavedIds]   = useState(new Set());
+  const [expandedId, setExpandedId] = useState(null);
 
-  const [fName, setFName] = useState('');
-  const [fInit, setFInit] = useState('');
-  const [fHp,   setFHp]   = useState('');
-  const [fMod,  setFMod]  = useState('');
-  const [fNpc,  setFNpc]  = useState(false);
+  const [fName,  setFName]  = useState('');
+  const [fInit,  setFInit]  = useState('');
+  const [fHp,    setFHp]    = useState('');
+  const [fMod,   setFMod]   = useState('');
+  const [fNpc,   setFNpc]   = useState(false);
+  const [fEnemy, setFEnemy] = useState(false);
   const [cQuery, setCQuery] = useState('');
   const [cOpen,  setCOpen]  = useState(false);
+  const [editHpId,  setEditHpId]  = useState(null);
+  const [editHpVal, setEditHpVal] = useState('');
+
+  const lang = i18n.language?.startsWith('it') ? 'it' : 'en';
+  const condLabel = (cond) => cond[lang] || cond.it;
 
   const sorted = useMemo(() =>
     [...combatants].sort((a, b) => b.initiative - a.initiative),
@@ -32,18 +66,27 @@ export default function InitiativeTracker({ open, onClose }) {
   const active  = sorted.filter(c => !c.defeated);
   const current = active.find(c => c.id === currentId) || active[0];
 
-  const addCombatant = (name, initiative, maxHp, isNpc) => {
+  const addCombatant = (name, initiative, maxHp, isNpc, isEnemy) => {
     const id   = newId();
     const hp   = parseInt(maxHp)      || 0;
     const init = parseInt(initiative) || 0;
-    setCombatants(prev => [...prev, { id, name, initiative: init, hp, maxHp: hp, isNpc, defeated: false }]);
+    setCombatants(prev => [...prev, {
+      id, name, initiative: init, hp, maxHp: hp, isNpc, isEnemy: !!isEnemy, defeated: false,
+      conditions: [], deathSucc: 0, deathFail: 0,
+    }]);
     setCurrentId(prev => prev || id);
   };
 
   const handleAdd = () => {
     if (!fName.trim()) return;
-    addCombatant(fName.trim(), fInit || '10', fHp || '0', fNpc);
+    addCombatant(fName.trim(), fInit || '10', fHp || '0', fNpc, fEnemy);
     setFName(''); setFInit(''); setFHp('');
+  };
+
+  const toggleEnemy = (id) => {
+    setCombatants(prev => prev.map(c =>
+      c.id === id ? { ...c, isEnemy: !c.isEnemy } : c
+    ));
   };
 
   const handleRoll = () => {
@@ -68,6 +111,16 @@ export default function InitiativeTracker({ open, onClose }) {
     ));
   };
 
+  const confirmEditHp = () => {
+    const n = parseInt(editHpVal);
+    if (!isNaN(n)) {
+      setCombatants(prev => prev.map(c =>
+        c.id === editHpId ? { ...c, hp: Math.max(0, c.maxHp > 0 ? Math.min(n, c.maxHp) : n) } : c
+      ));
+    }
+    setEditHpId(null);
+  };
+
   const toggleDefeated = (id) => {
     setCombatants(prev => prev.map(c =>
       c.id === id ? { ...c, defeated: !c.defeated } : c
@@ -80,6 +133,24 @@ export default function InitiativeTracker({ open, onClose }) {
       const rest = active.filter(c => c.id !== id);
       setCurrentId(rest[0]?.id || null);
     }
+    if (id === expandedId) setExpandedId(null);
+  };
+
+  const toggleCondition = (id, condId) => {
+    setCombatants(prev => prev.map(c =>
+      c.id === id ? {
+        ...c,
+        conditions: c.conditions.includes(condId)
+          ? c.conditions.filter(x => x !== condId)
+          : [...c.conditions, condId],
+      } : c
+    ));
+  };
+
+  const setDeathSave = (id, field, val) => {
+    setCombatants(prev => prev.map(c =>
+      c.id === id ? { ...c, [field]: Math.max(0, Math.min(3, val)) } : c
+    ));
   };
 
   const nextTurn = () => {
@@ -100,7 +171,7 @@ export default function InitiativeTracker({ open, onClose }) {
 
   const reset = () => {
     if (!window.confirm(t('init.confirm_reset'))) return;
-    setCombatants([]); setRound(1); setCurrentId(null);
+    setCombatants([]); setRound(1); setCurrentId(null); setExpandedId(null);
   };
 
   if (!open && !minimized) return null;
@@ -160,61 +231,232 @@ export default function InitiativeTracker({ open, onClose }) {
 
       {/* Combatant list */}
       {sorted.length === 0 ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 13 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 14 }}>
           {t('init.empty')}
         </div>
       ) : (
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {sorted.map(c => {
-            const isCurrent = c.id === current?.id;
-            const hpPct     = c.maxHp > 0 ? c.hp / c.maxHp : 1;
-            const hpColor   = hpPct > 0.5 ? '#6ab675' : hpPct > 0.25 ? '#d4a84c' : '#e07070';
+            const isCurrent  = c.id === current?.id;
+            const isExpanded = expandedId === c.id;
+            const hpPct      = c.maxHp > 0 ? c.hp / c.maxHp : 1;
+            const hpColor    = hpPct > 0.5 ? '#6ab675' : hpPct > 0.25 ? '#d4a84c' : '#e07070';
+            const isDying    = c.hp === 0 && !c.defeated && c.maxHp > 0;
+            const isStable   = c.deathSucc >= 3;
+            const isDead     = c.deathFail >= 3;
+            const activeConds = CONDITIONS.filter(cond => c.conditions.includes(cond.id));
+
+            const sideColor = c.isEnemy ? '#e07070' : '#7ab8d4';
+            const sideBg    = c.isEnemy ? 'rgba(224,112,112,.15)' : 'rgba(122,184,212,.15)';
+
             return (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: isCurrent ? 'var(--gold-glow)' : 'transparent', borderBottom: '1px solid var(--border)', borderLeft: `3px solid ${isCurrent ? 'var(--gold)' : 'transparent'}`, opacity: c.defeated ? .4 : 1, transition: 'background .15s, border-color .15s' }}>
-                <span style={{ width: 28, textAlign: 'right', fontSize: 15, fontFamily: "'Playfair Display', serif", color: isCurrent ? 'var(--gold)' : 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
-                  {c.initiative}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: c.defeated ? 'var(--text-muted)' : 'var(--text)', fontFamily: "'Crimson Pro', serif", textDecoration: c.defeated ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {c.isNpc && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginRight: 4 }}>NPC</span>}
-                    {c.name}
+              <div key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                {/* Main row */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                  background: isCurrent ? 'var(--gold-glow)' : 'transparent',
+                  borderLeft: `3px solid ${isCurrent ? 'var(--gold)' : sideColor}`,
+                  opacity: c.defeated ? .45 : 1, transition: 'background .15s, border-color .15s',
+                }}>
+
+                  {/* Initiative bubble — click to toggle side */}
+                  <div
+                    onClick={() => toggleEnemy(c.id)}
+                    title={t(c.isEnemy ? 'init.enemy' : 'init.ally')}
+                    style={{
+                      width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: isCurrent ? 'var(--gold-glow)' : sideBg,
+                      border: `2px solid ${isCurrent ? 'var(--gold)' : sideColor}`,
+                      cursor: 'pointer', transition: 'all .2s',
+                    }}>
+                    <span style={{ fontSize: 15, fontFamily: "'Playfair Display', serif", color: isCurrent ? 'var(--gold)' : sideColor, fontWeight: 700, lineHeight: 1 }}>
+                      {c.initiative}
+                    </span>
                   </div>
-                  {c.maxHp > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
-                      <div style={{ flex: 1, height: 4, background: 'var(--surface3)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.min(hpPct * 100, 100)}%`, height: '100%', background: c.defeated ? '#555' : hpColor, borderRadius: 2, transition: 'width .2s' }} />
+
+                  {/* Name + HP + conditions */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Name */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: c.maxHp > 0 ? 5 : 0 }}>
+                      {c.isNpc && (
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 3, padding: '0 4px', flexShrink: 0, lineHeight: '16px' }}>
+                          NPC
+                        </span>
+                      )}
+                      <span style={{ fontSize: 15, color: c.defeated ? 'var(--text-muted)' : 'var(--text)', fontFamily: "'Crimson Pro', serif", textDecoration: c.defeated ? 'line-through' : 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.name}
+                      </span>
+                    </div>
+
+                    {/* HP row */}
+                    {c.maxHp > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        {/* Thin bar */}
+                        <div style={{ width: 60, flexShrink: 0, height: 3, background: 'var(--surface3)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(hpPct * 100, 100)}%`, height: '100%', background: c.defeated ? '#555' : hpColor, transition: 'width .25s' }} />
+                        </div>
+                        {/* HP number — clickable to edit */}
+                        {editHpId === c.id ? (
+                          <input
+                            autoFocus type="number" min="0" value={editHpVal}
+                            onChange={e => setEditHpVal(e.target.value)}
+                            onBlur={confirmEditHp}
+                            onKeyDown={e => { if (e.key === 'Enter') confirmEditHp(); if (e.key === 'Escape') setEditHpId(null); }}
+                            style={{ width: 52, fontSize: 13, textAlign: 'center', background: 'var(--surface2)', border: '1px solid var(--gold-dim)', borderRadius: 4, color: 'var(--text)', padding: '2px 4px', outline: 'none', fontFamily: 'monospace', flexShrink: 0 }}
+                          />
+                        ) : (
+                          <span
+                            title={t('init.hp_edit_title')}
+                            onClick={() => { if (!c.defeated) { setEditHpId(c.id); setEditHpVal(String(c.hp)); } }}
+                            style={{ fontSize: 13, fontFamily: 'monospace', flexShrink: 0, cursor: c.defeated ? 'default' : 'text', userSelect: 'none', lineHeight: 1 }}>
+                            <span style={{ color: c.defeated ? 'var(--text-muted)' : hpColor, fontWeight: 700 }}>{c.hp}</span>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>/{c.maxHp}</span>
+                          </span>
+                        )}
+                        {/* Dying status inline */}
+                        {isDying && (
+                          <span style={{ fontSize: 11, color: isDead ? '#e07070' : isStable ? '#6ab675' : '#d4a84c', fontStyle: 'italic', flexShrink: 0 }}>
+                            {isDead ? t('init.dead_txt') : isStable ? t('init.stable') : t('init.dying')}
+                          </span>
+                        )}
                       </div>
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>{c.hp}/{c.maxHp}</span>
+                    )}
+
+                    {/* Active conditions */}
+                    {activeConds.length > 0 && (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 5, flexWrap: 'wrap' }}>
+                        {activeConds.map(cond => (
+                          <span key={cond.id}
+                            onClick={() => toggleCondition(c.id, cond.id)}
+                            title={condLabel(cond)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, padding: '2px 6px', borderRadius: 4, background: cond.color + '28', border: `1px solid ${cond.color}80`, color: cond.color, cursor: 'pointer', lineHeight: 1.2 }}>
+                            <span style={{ fontSize: 12 }}>{cond.icon}</span>
+                            <span>{condLabel(cond)}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* HP ±1 buttons */}
+                  {!c.defeated && c.maxHp > 0 && (
+                    <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+                      <button onClick={() => updateHp(c.id, -1)}
+                        style={{ width: 28, height: 28, background: 'rgba(224,112,112,.15)', border: '1px solid rgba(224,112,112,.6)', color: '#e07070', borderRadius: 5, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, fontFamily: 'monospace', fontWeight: 700 }}>−</button>
+                      <button onClick={() => updateHp(c.id, 1)}
+                        style={{ width: 28, height: 28, background: 'rgba(106,182,117,.15)', border: '1px solid rgba(106,182,117,.6)', color: '#6ab675', borderRadius: 5, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 0, fontFamily: 'monospace', fontWeight: 700 }}>+</button>
                     </div>
                   )}
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
+                    {/* Expand toggle */}
+                    <button onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                      title={t('init.expand_conditions')}
+                      style={{ background: isExpanded ? 'var(--gold-glow)' : 'var(--surface2)', border: `1px solid ${isExpanded ? 'var(--gold-dim)' : 'var(--border)'}`, color: isExpanded ? 'var(--gold)' : 'var(--text-muted)', cursor: 'pointer', fontSize: 12, padding: '5px 8px', borderRadius: 5, transition: 'all .15s' }}>
+                      {isExpanded ? '▴' : '▾'}
+                    </button>
+
+                    {/* Defeat / Revive */}
+                    <button onClick={() => toggleDefeated(c.id)}
+                      title={c.defeated ? t('init.revive') : t('init.defeat')}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '5px 10px', borderRadius: 5, cursor: 'pointer', fontSize: 12,
+                        fontFamily: "'Crimson Pro', serif", transition: 'all .15s', whiteSpace: 'nowrap',
+                        background: c.defeated ? 'rgba(106,182,117,.18)' : 'rgba(224,112,112,.18)',
+                        border: `1px solid ${c.defeated ? 'rgba(106,182,117,.6)' : 'rgba(224,112,112,.6)'}`,
+                        color: c.defeated ? '#6ab675' : '#e07070',
+                      }}>
+                      <span>{c.defeated ? '↩' : '☠'}</span>
+                      <span>{c.defeated ? t('init.revive') : t('init.defeat')}</span>
+                    </button>
+
+                    {/* Remove */}
+                    <button onClick={() => removeCombatant(c.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 18, padding: '2px 5px', opacity: .5, lineHeight: 1, transition: 'opacity .15s' }}
+                      onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                      onMouseLeave={e => e.currentTarget.style.opacity = .5}>×</button>
+                  </div>
                 </div>
-                {!c.defeated && c.maxHp > 0 && (
-                  <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-                    <button onClick={() => updateHp(c.id, -1)}
-                      style={{ width: 22, height: 22, background: '#3a1515', border: '1px solid #e0707044', color: '#e07070', borderRadius: 3, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0, fontFamily: 'monospace' }}>−</button>
-                    <button onClick={() => updateHp(c.id, 1)}
-                      style={{ width: 22, height: 22, background: '#1a3020', border: '1px solid #6ab67544', color: '#6ab675', borderRadius: 3, cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0, fontFamily: 'monospace' }}>+</button>
+
+                {/* Expanded panel: conditions + death saves + save NPC */}
+                {isExpanded && (
+                  <div style={{ padding: '12px 14px 14px', background: 'var(--surface2)', borderLeft: `3px solid ${isCurrent ? 'var(--gold-dim)' : 'var(--border)'}` }}>
+                    {/* Save NPC to world — inside expanded, less prominent */}
+                    {c.isNpc && (
+                      <button
+                        onClick={() => saveNpc(c)}
+                        disabled={savedIds.has(c.id)}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          marginBottom: 12, padding: '5px 12px', borderRadius: 5, fontSize: 12,
+                          fontFamily: "'Crimson Pro', serif", cursor: savedIds.has(c.id) ? 'default' : 'pointer',
+                          background: savedIds.has(c.id) ? 'rgba(106,182,117,.15)' : 'var(--surface)',
+                          border: `1px solid ${savedIds.has(c.id) ? 'rgba(106,182,117,.5)' : 'var(--border)'}`,
+                          color: savedIds.has(c.id) ? '#6ab675' : 'var(--text-muted)',
+                          transition: 'all .15s',
+                        }}>
+                        <span>{savedIds.has(c.id) ? '✓' : '💾'}</span>
+                        <span>{savedIds.has(c.id) ? t('init.npc_saved') : t('init.save_npc')}</span>
+                      </button>
+                    )}
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 8, fontWeight: 600 }}>
+                      {t('init.conditions_lbl')}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: isDying ? 14 : 0 }}>
+                      {CONDITIONS.map(cond => {
+                        const isActive = c.conditions.includes(cond.id);
+                        return (
+                          <button key={cond.id} onClick={() => toggleCondition(c.id, cond.id)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              padding: '5px 9px', fontSize: 12, cursor: 'pointer',
+                              borderRadius: 'var(--r)', fontFamily: "'Crimson Pro', serif",
+                              background: isActive ? cond.color + '28' : 'var(--surface)',
+                              border: `1px solid ${isActive ? cond.color + 'cc' : 'var(--border)'}`,
+                              color: isActive ? cond.color : 'var(--text)',
+                              transition: 'all .15s',
+                            }}>
+                            <span style={{ fontSize: 14 }}>{cond.icon}</span>
+                            <span>{condLabel(cond)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {isDying && (
+                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 2 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10, fontWeight: 600 }}>
+                          {t('init.death_saves_lbl')}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 13, color: '#6ab675', width: 76, flexShrink: 0, fontFamily: "'Crimson Pro', serif" }}>{t('init.death_succ')}</span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              {[0, 1, 2].map(i => (
+                                <DeathDot key={i} filled={c.deathSucc > i} color="#6ab675"
+                                  onClick={() => setDeathSave(c.id, 'deathSucc', c.deathSucc > i ? i : i + 1)} />
+                              ))}
+                            </div>
+                            {isStable && <span style={{ fontSize: 12, color: '#6ab675', fontStyle: 'italic' }}>{t('init.stable')}</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 13, color: '#e07070', width: 76, flexShrink: 0, fontFamily: "'Crimson Pro', serif" }}>{t('init.death_fail')}</span>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              {[0, 1, 2].map(i => (
+                                <DeathDot key={i} filled={c.deathFail > i} color="#e07070"
+                                  onClick={() => setDeathSave(c.id, 'deathFail', c.deathFail > i ? i : i + 1)} />
+                              ))}
+                            </div>
+                            {isDead && <span style={{ fontSize: 12, color: '#e07070', fontStyle: 'italic' }}>{t('init.dead_txt')}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-                <button onClick={() => toggleDefeated(c.id)} title={c.defeated ? t('init.revive') : t('init.defeat')}
-                  style={{ background: 'none', border: 'none', color: c.defeated ? '#6ab675' : '#e07070', cursor: 'pointer', fontSize: 13, flexShrink: 0, opacity: .65, padding: 0 }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                  onMouseLeave={e => e.currentTarget.style.opacity = .65}>
-                  {c.defeated ? '↩' : '☠'}
-                </button>
-                <button
-                  onClick={() => saveNpc(c)}
-                  disabled={savedIds.has(c.id)}
-                  title={savedIds.has(c.id) ? t('init.npc_saved') : t('init.save_npc')}
-                  style={{ background: 'none', border: 'none', color: savedIds.has(c.id) ? '#6ab675' : 'var(--text-muted)', cursor: savedIds.has(c.id) ? 'default' : 'pointer', fontSize: 12, flexShrink: 0, opacity: savedIds.has(c.id) ? 1 : .5, padding: 0 }}
-                  onMouseEnter={e => { if (!savedIds.has(c.id)) e.currentTarget.style.opacity = 1; }}
-                  onMouseLeave={e => { if (!savedIds.has(c.id)) e.currentTarget.style.opacity = .5; }}>
-                  {savedIds.has(c.id) ? '✓' : '💾'}
-                </button>
-                <button onClick={() => removeCombatant(c.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 15, flexShrink: 0, opacity: .4, padding: 0 }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                  onMouseLeave={e => e.currentTarget.style.opacity = .4}>×</button>
               </div>
             );
           })}
@@ -227,7 +469,7 @@ export default function InitiativeTracker({ open, onClose }) {
           {t('init.add_lbl')}
         </div>
 
-        {/* Quick-add: tutti gli elementi dal database, raggruppati per categoria */}
+        {/* Quick-add */}
         <div style={{ position: 'relative', marginBottom: 6 }}>
           <input type="text" placeholder={t('init.quick_add_ph')} value={cQuery}
             onChange={e => { setCQuery(e.target.value); setCOpen(true); }}
@@ -271,6 +513,18 @@ export default function InitiativeTracker({ open, onClose }) {
           <input id="initHpInput" type="number" placeholder="HP" value={fHp}
             onChange={e => setFHp(e.target.value)}
             style={{ flex: '0 0 50px', width: '50px', minWidth: '0', boxSizing: 'border-box', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', color: 'var(--text)', fontFamily: "'Crimson Pro', serif", fontSize: 12, padding: '5px 2px', outline: 'none', textAlign: 'center' }} />
+        </div>
+
+        {/* Ally / Enemy toggle + mod + roll */}
+        <div style={{ display: 'flex', gap: 5, marginBottom: 5 }}>
+          <button type="button" onClick={() => setFEnemy(false)}
+            style={{ flex: 1, padding: '5px 8px', borderRadius: 5, fontSize: 12, cursor: 'pointer', fontFamily: "'Crimson Pro', serif", transition: 'all .15s', background: !fEnemy ? 'rgba(122,184,212,.2)' : 'var(--surface)', border: `1px solid ${!fEnemy ? '#7ab8d4' : 'var(--border)'}`, color: !fEnemy ? '#7ab8d4' : 'var(--text-muted)' }}>
+            🛡 {t('init.ally')}
+          </button>
+          <button type="button" onClick={() => setFEnemy(true)}
+            style={{ flex: 1, padding: '5px 8px', borderRadius: 5, fontSize: 12, cursor: 'pointer', fontFamily: "'Crimson Pro', serif", transition: 'all .15s', background: fEnemy ? 'rgba(224,112,112,.2)' : 'var(--surface)', border: `1px solid ${fEnemy ? '#e07070' : 'var(--border)'}`, color: fEnemy ? '#e07070' : 'var(--text-muted)' }}>
+            ⚔ {t('init.enemy')}
+          </button>
         </div>
 
         <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>

@@ -187,28 +187,64 @@ function PrepSection({ sessione, onSavePrep, onUseAsBase }) {
   const { t } = useTranslation();
   const prep = sessione.preparazione || {};
 
-  const [png,    setPng]    = useState(prep.pngCoinvolti   || []);
-  const [luoghi, setLuoghi] = useState(prep.luoghiPrevisti || []);
-  const [fili,   setFili]   = useState(prep.filiToccati    || []);
-  const [note,   setNote]   = useState(prep.noteDM         || '');
-  const [saving, setSaving] = useState(false);
+  const [png,       setPng]       = useState(prep.pngCoinvolti      || []);
+  const [luoghi,    setLuoghi]    = useState(prep.luoghiPrevisti    || []);
+  const [fili,      setFili]      = useState(prep.filiToccati       || []);
+  const [rumors,    setRumors]    = useState(prep.rumorsIntrodotti   || []);
+  const [eventi,    setEventi]    = useState(prep.eventiPrevisti     || []);
+  const [note,      setNote]      = useState(prep.noteDM             || '');
+  const [checklist, setChecklist] = useState(prep.checklist          || []);
+  const [newItem,   setNewItem]   = useState('');
+  const [saving,    setSaving]    = useState(false);
 
   useEffect(() => {
     const p = sessione.preparazione || {};
-    setPng(p.pngCoinvolti   || []);
-    setLuoghi(p.luoghiPrevisti || []);
-    setFili(p.filiToccati    || []);
-    setNote(p.noteDM         || '');
+    setPng(p.pngCoinvolti        || []);
+    setLuoghi(p.luoghiPrevisti   || []);
+    setFili(p.filiToccati        || []);
+    setRumors(p.rumorsIntrodotti || []);
+    setEventi(p.eventiPrevisti   || []);
+    setNote(p.noteDM             || '');
+    setChecklist(p.checklist     || []);
   }, [sessione.preparazione]);
+
+  const buildPrep = (overrides = {}) => ({
+    pngCoinvolti: png, luoghiPrevisti: luoghi, filiToccati: fili,
+    rumorsIntrodotti: rumors, eventiPrevisti: eventi,
+    noteDM: note, checklist, ...overrides,
+  });
 
   const handleSave = async () => {
     setSaving(true);
-    await onSavePrep({ pngCoinvolti: png, luoghiPrevisti: luoghi, filiToccati: fili, noteDM: note });
+    await onSavePrep(buildPrep());
     setSaving(false);
   };
 
+  const addItem = () => {
+    if (!newItem.trim()) return;
+    const updated = [...checklist, { id: Date.now().toString(), text: newItem.trim(), done: false }];
+    setChecklist(updated);
+    setNewItem('');
+    onSavePrep(buildPrep({ checklist: updated }));
+  };
+
+  const toggleItem = (id) => {
+    const updated = checklist.map(item => item.id === id ? { ...item, done: !item.done } : item);
+    setChecklist(updated);
+    onSavePrep(buildPrep({ checklist: updated }));
+  };
+
+  const removeItem = (id) => {
+    const updated = checklist.filter(item => item.id !== id);
+    setChecklist(updated);
+    onSavePrep(buildPrep({ checklist: updated }));
+  };
+
+  const doneCount = checklist.filter(i => i.done).length;
+
   return (
     <div>
+      {/* Characters & Places */}
       <div className="fg">
         <label className="fl">{t('sess.prep_png_lbl')}</label>
         <ElementPicker selected={png} onChange={setPng} filterCat="char" inputId={'prep_png_' + sessione.id} />
@@ -217,20 +253,68 @@ function PrepSection({ sessione, onSavePrep, onUseAsBase }) {
         <label className="fl">{t('sess.prep_luoghi_lbl')}</label>
         <ElementPicker selected={luoghi} onChange={setLuoghi} filterCat="place" inputId={'prep_luog_' + sessione.id} />
       </div>
+
+      {/* Planned events */}
+      <div className="fg">
+        <label className="fl">{t('sess.prep_events_lbl')}</label>
+        <ElementPicker selected={eventi} onChange={setEventi} filterCat="event" inputId={'prep_ev_' + sessione.id} />
+      </div>
+
+      {/* Narrative threads */}
       <div className="fg">
         <label className="fl">{t('sess.prep_fili_lbl')}</label>
         <FiliPicker selected={fili} onChange={setFili} inputId={'prep_fili_' + sessione.id} />
       </div>
+
+      {/* Rumors to introduce */}
+      <div className="fg">
+        <label className="fl">{t('sess.prep_rumors_lbl')}</label>
+        <RumorsPicker selected={rumors} onChange={setRumors} inputId={'prep_rum_' + sessione.id} />
+      </div>
+
+      {/* DM Objectives checklist */}
+      <div className="fg">
+        <label className="fl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {t('sess.prep_checklist_lbl')}
+          {checklist.length > 0 && (
+            <span style={{ fontSize: 11, color: doneCount === checklist.length ? '#6ab675' : 'var(--text-muted)', fontWeight: 400 }}>
+              {doneCount}/{checklist.length}
+            </span>
+          )}
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {checklist.map(item => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+              <div onClick={() => toggleItem(item.id)}
+                style={{ width: 16, height: 16, borderRadius: 3, border: `2px solid ${item.done ? '#6ab675' : 'var(--border)'}`, background: item.done ? '#6ab675' : 'transparent', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', transition: 'all .15s' }}>
+                {item.done ? '✓' : ''}
+              </div>
+              <span style={{ flex: 1, fontSize: 13, color: item.done ? 'var(--text-muted)' : 'var(--text)', textDecoration: item.done ? 'line-through' : 'none', lineHeight: 1.4 }}>
+                {item.text}
+              </span>
+              <button onClick={() => removeItem(item.id)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, opacity: .4, padding: 0, flexShrink: 0 }}
+                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                onMouseLeave={e => e.currentTarget.style.opacity = .4}>×</button>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+            <input className="fi" style={{ flex: 1, marginBottom: 0 }}
+              placeholder={t('sess.prep_checklist_ph')} value={newItem}
+              onChange={e => setNewItem(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }} />
+            <button type="button" className="btn-g" onClick={addItem} style={{ flexShrink: 0, padding: '5px 12px' }}>+</button>
+          </div>
+        </div>
+      </div>
+
+      {/* DM Notes */}
       <div className="fg">
         <label className="fl">{t('sess.prep_note_lbl')}</label>
-        <textarea
-          className="ft"
-          style={{ minHeight: 90 }}
-          placeholder={t('sess.prep_note_ph')}
-          value={note}
-          onChange={e => setNote(e.target.value)}
-        />
+        <textarea className="ft" style={{ minHeight: 90 }} placeholder={t('sess.prep_note_ph')}
+          value={note} onChange={e => setNote(e.target.value)} />
       </div>
+
       <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
         <button className="btn-p" onClick={handleSave} disabled={saving}>
           {saving ? '⏳' : t('sess.prep_save_btn')}
@@ -370,10 +454,13 @@ function SessioneCard({ sessione, onEdit, onDelete, onOpenElement, onSavePrep, o
 
   const prep = sessione.preparazione;
   const hasPrep = prep && (
-    (prep.pngCoinvolti   || []).length > 0 ||
-    (prep.luoghiPrevisti || []).length > 0 ||
-    (prep.filiToccati    || []).length > 0 ||
-    (prep.noteDM         || '').trim().length > 0
+    (prep.pngCoinvolti      || []).length > 0 ||
+    (prep.luoghiPrevisti    || []).length > 0 ||
+    (prep.filiToccati       || []).length > 0 ||
+    (prep.rumorsIntrodotti  || []).length > 0 ||
+    (prep.eventiPrevisti    || []).length > 0 ||
+    (prep.checklist         || []).length > 0 ||
+    (prep.noteDM            || '').trim().length > 0
   );
   const showPrepBadge = hasPrep && !sessione.riassunto;
 
@@ -395,6 +482,17 @@ function SessioneCard({ sessione, onEdit, onDelete, onOpenElement, onSavePrep, o
             {t('sess.prep_badge')}
           </span>
         )}
+        {(() => {
+          const cl = prep?.checklist || [];
+          if (!cl.length) return null;
+          const done = cl.filter(i => i.done).length;
+          const allDone = done === cl.length;
+          return (
+            <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: allDone ? '#1a302044' : '#2a281044', color: allDone ? '#6ab675' : '#d4a84c', border: `1px solid ${allDone ? '#6ab67544' : '#d4a84c44'}`, flexShrink: 0, whiteSpace: 'nowrap' }}>
+              ✓ {done}/{cl.length}
+            </span>
+          );
+        })()}
         {dateStr && (
           <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>{dateStr}</span>
         )}

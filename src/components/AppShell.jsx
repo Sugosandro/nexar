@@ -16,6 +16,8 @@ import EditorView    from '../views/EditorView';
 import SessioniView  from '../views/SessioniView';
 import FiliView      from '../views/FiliView';
 import RumorsView    from '../views/RumorsView';
+import HandoutView   from '../views/HandoutView';
+import TavoleView   from '../views/TavoleView';
 import DetailPanel from './DetailPanel';
 import CatModal from './CatModal';
 import Toast from './Toast';
@@ -38,6 +40,8 @@ const VIEWS = [
   { id: 'sessioni',    icon: '🎲', labelKey: 'nav.sessions',    component: SessioniView },
   { id: 'fili',        icon: '🔀', labelKey: 'nav.threads',     component: FiliView },
   { id: 'rumors',      icon: '💬', labelKey: 'nav.rumors',      component: RumorsView },
+  { id: 'handout',     icon: '📜', labelKey: 'nav.handout',     component: HandoutView },
+  { id: 'tavole',     icon: '🎲', labelKey: 'nav.tavole',      component: TavoleView },
 ];
 
 const VIEWS_META = VIEWS.map(({ id, icon, labelKey }) => ({ id, icon, labelKey }));

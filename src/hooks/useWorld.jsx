@@ -6,6 +6,8 @@ import {
   subscribeFili, addFilo, updateFilo, deleteFilo,
   subscribeSessioni, addSessione, updateSessione, deleteSessione,
   subscribeRumors, addRumor, updateRumor, deleteRumor,
+  subscribeHandouts, addHandout, updateHandout, deleteHandout,
+  subscribeTavole, addTabella, updateTabella, deleteTabella,
   addElement, updateElement, deleteElement, syncBidirectionalTags,
   addArc, updateArc, deleteArc,
   addFazione, updateFazione, deleteFazione,
@@ -55,6 +57,8 @@ export function WorldProvider({ uid, wid, children }) {
   const [filiNarr, setFiliNarr] = useState([]);
   const [sessioni, setSessioni] = useState([]);
   const [rumors,   setRumors]   = useState([]);
+  const [handouts, setHandouts] = useState([]);
+  const [tavole,   setTavole]   = useState([]);
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
@@ -68,7 +72,9 @@ export function WorldProvider({ uid, wid, children }) {
     const unsubFili = subscribeFili    (uid, wid, setFiliNarr);
     const unsubSess = subscribeSessioni(uid, wid, setSessioni);
     const unsubRum  = subscribeRumors  (uid, wid, setRumors);
-    return () => { unsubEl(); unsubArc(); unsubFaz(); unsubMag(); unsubCat(); unsubFili(); unsubSess(); unsubRum(); };
+    const unsubHnd  = subscribeHandouts(uid, wid, setHandouts);
+    const unsubTav  = subscribeTavole  (uid, wid, setTavole);
+    return () => { unsubEl(); unsubArc(); unsubFaz(); unsubMag(); unsubCat(); unsubFili(); unsubSess(); unsubRum(); unsubHnd(); unsubTav(); };
   }, [uid, wid]);
 
   // ── Helpers ──
@@ -184,6 +190,16 @@ export function WorldProvider({ uid, wid, children }) {
   const updateRumorFn = (rid, changes) => updateRumor(uid, wid, rid, changes);
   const deleteRumorFn = (rid)          => deleteRumor(uid, wid, rid);
 
+  // ── Azioni handouts ──
+  const addHandoutFn    = (data)         => addHandout   (uid, wid, data);
+  const updateHandoutFn = (hid, changes) => updateHandout(uid, wid, hid, changes);
+  const deleteHandoutFn = (hid)          => deleteHandout(uid, wid, hid);
+
+  // ── Azioni tavole ──
+  const addTabellaFn    = (data)         => addTabella   (uid, wid, data);
+  const updateTabellaFn = (tid, changes) => updateTabella(uid, wid, tid, changes);
+  const deleteTabellaFn = (tid)          => deleteTabella(uid, wid, tid);
+
   const upsertBuiltinSubs = async (catId, newSub) => {
     // Usa sempre setDoc con l'ID della built-in — fa upsert automatico.
     // Legge prima le subs esistenti per non sovrascriverle.
@@ -196,7 +212,7 @@ export function WorldProvider({ uid, wid, children }) {
   };
 
   const value = {
-    elements, arcs, fazioni, magie, cats, fili: filiNarr, sessioni, rumors, loading,
+    elements, arcs, fazioni, magie, cats, fili: filiNarr, sessioni, rumors, handouts, tavole, loading,
     uid, wid,
     allCats, catById, elById, arcById, fazById, magById,
     tagId, tagObj, sortTags,
@@ -210,6 +226,8 @@ export function WorldProvider({ uid, wid, children }) {
     addFilo: addFiloFn, updateFilo: updateFiloFn, deleteFilo: deleteFiloFn,
     addSessione: addSesseFn, updateSessione: updateSesseFn, deleteSessione: deleteSesseFn,
     addRumor: addRumorFn, updateRumor: updateRumorFn, deleteRumor: deleteRumorFn,
+    addHandout: addHandoutFn, updateHandout: updateHandoutFn, deleteHandout: deleteHandoutFn,
+    addTabella: addTabellaFn, updateTabella: updateTabellaFn, deleteTabella: deleteTabellaFn,
     upsertBuiltinSubs,
   };
 

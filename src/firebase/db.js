@@ -504,6 +504,60 @@ export async function deleteRumor(uid, wid, rid) {
   await deleteDoc(docRef(uid, wid, 'rumors', rid));
 }
 
+// ══════════════════════════════════════════════
+// HANDOUT
+// ══════════════════════════════════════════════
+
+export function subscribeHandouts(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'handouts'), orderBy('createdAt', 'desc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function addHandout(uid, wid, data) {
+  const ref = await addDoc(colRef(uid, wid, 'handouts'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateHandout(uid, wid, hid, changes) {
+  await updateDoc(docRef(uid, wid, 'handouts', hid), changes);
+}
+
+export async function deleteHandout(uid, wid, hid) {
+  await deleteDoc(docRef(uid, wid, 'handouts', hid));
+}
+
+// ══════════════════════════════════════════════
+// TAVOLE CASUALI
+// ══════════════════════════════════════════════
+
+export function subscribeTavole(uid, wid, onData) {
+  return onSnapshot(
+    query(colRef(uid, wid, 'tavole'), orderBy('createdAt', 'desc')),
+    snap => onData(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+  );
+}
+
+export async function addTabella(uid, wid, data) {
+  const ref = await addDoc(colRef(uid, wid, 'tavole'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateTabella(uid, wid, tid, changes) {
+  await updateDoc(docRef(uid, wid, 'tavole', tid), changes);
+}
+
+export async function deleteTabella(uid, wid, tid) {
+  await deleteDoc(docRef(uid, wid, 'tavole', tid));
+}
+
 
 // ══════════════════════════════════════════════
 // CAPITOLI EDITOR

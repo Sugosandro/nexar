@@ -14,7 +14,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="loading-screen">
-        <div className="loading-logo">Story<span>World</span></div>
+        <div className="loading-logo">Nex<span>ar</span></div>
         <div className="loading-spinner">✨</div>
       </div>
     );

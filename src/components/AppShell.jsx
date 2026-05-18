@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useWorld } from '../hooks/useWorld';
@@ -25,6 +25,10 @@ import GlobalSearch from './GlobalSearch';
 import InitiativeTracker from './InitiativeTracker';
 import SettingsModal from './SettingsModal';
 import ViewHint from './ViewHint';
+import OnboardingModal from './OnboardingModal';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
+import { getViewTour, hasViewTour } from '../tours/viewTours';
 
 const VIEWS = [
   { id: 'world',       icon: '🌍', labelKey: 'nav.world',       component: WorldView },
@@ -51,7 +55,6 @@ function loadViewsConfig() {
     const raw = localStorage.getItem('nexar-views-config');
     if (!raw) return VIEWS.map(v => ({ id: v.id, visible: true }));
     const saved = JSON.parse(raw);
-    // Preserve saved order + visibility; append any views added after save
     const savedIds = saved.map(s => s.id).filter(id => VIEWS.find(v => v.id === id));
     const ordered  = savedIds.map(id => ({ id, visible: saved.find(s => s.id === id)?.visible ?? true }));
     const newOnes  = VIEWS.filter(v => !savedIds.includes(v.id)).map(v => ({ id: v.id, visible: true }));
@@ -61,25 +64,78 @@ function loadViewsConfig() {
   }
 }
 
+function buildDriverInstance(steps, t) {
+  return driver({
+    showProgress: true,
+    progressText: '{{current}} / {{total}}',
+    nextBtnText: t('tour.next'),
+    prevBtnText: t('tour.prev'),
+    doneBtnText: t('tour.done'),
+    overlayColor: 'rgba(0,0,0,.75)',
+    stagePadding: 8,
+    stageRadius: 6,
+    steps,
+  });
+}
+
+function safeSteps(rawSteps) {
+  return rawSteps.map(step => {
+    if (!step.element) return step;
+    if (!document.querySelector(step.element)) return { popover: step.popover };
+    return step;
+  });
+}
+
 export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { signOut } = useAuth();
   const { loading } = useWorld();
 
-  const [curView,      setCurView]      = useState('world');
-  const [preloadText,  setPreloadText]  = useState(null);
-  const [panel,        setPanel]        = useState(null);
-  const [sidebarOpen,  setSidebarOpen]  = useState(false);
-  const [catModal,     setCatModal]     = useState(false);
-  const [initOpen,     setInitOpen]     = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [toast,        setToast]        = useState(null);
-  const [viewsConfig,  setViewsConfig]  = useState(loadViewsConfig);
+  const [curView,        setCurView]        = useState('world');
+  const [preloadText,    setPreloadText]    = useState(null);
+  const [panel,          setPanel]          = useState(null);
+  const [sidebarOpen,    setSidebarOpen]    = useState(false);
+  const [catModal,       setCatModal]       = useState(false);
+  const [initOpen,       setInitOpen]       = useState(false);
+  const [settingsOpen,   setSettingsOpen]   = useState(false);
+  const [toast,          setToast]          = useState(null);
+  const [viewsConfig,    setViewsConfig]    = useState(loadViewsConfig);
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('nexar-onboarding-done'));
 
   const handleViewsConfigChange = (newConfig) => {
     setViewsConfig(newConfig);
     localStorage.setItem('nexar-views-config', JSON.stringify(newConfig));
   };
+
+  const startTour = useCallback(() => {
+    const driverObj = buildDriverInstance([
+      { element: '.logo',            popover: { title: t('tour.s1_title'), description: t('tour.s1_desc'), side: 'bottom', align: 'start' } },
+      { element: '#tour-nav',        popover: { title: t('tour.s2_title'), description: t('tour.s2_desc'), side: 'bottom' } },
+      { element: '#tour-categories', popover: { title: t('tour.s3_title'), description: t('tour.s3_desc'), side: 'bottom' } },
+      { element: '#tour-initiative', popover: { title: t('tour.s4_title'), description: t('tour.s4_desc'), side: 'bottom' } },
+      { element: '#tour-settings',   popover: { title: t('tour.s5_title'), description: t('tour.s5_desc'), side: 'bottom' } },
+      { element: '#tour-sidebar',    popover: { title: t('tour.s6_title'), description: t('tour.s6_desc'), side: 'right', align: 'start' } },
+    ], t);
+    driverObj.drive();
+  }, [t]);
+
+  const startViewTour = useCallback((viewId) => {
+    const rawSteps = getViewTour(viewId, i18n.language);
+    if (!rawSteps?.length) return;
+    const driverObj = buildDriverInstance(safeSteps(rawSteps), t);
+    driverObj.drive();
+  }, [t, i18n.language]);
+
+  // Auto-trigger per-view tour on first visit
+  useEffect(() => {
+    if (loading) return;
+    const key = `nexar-tour-view-${curView}`;
+    if (localStorage.getItem(key)) return;
+    if (!hasViewTour(curView)) return;
+    localStorage.setItem(key, '1');
+    const timer = setTimeout(() => startViewTour(curView), 700);
+    return () => clearTimeout(timer);
+  }, [curView, loading, startViewTour]);
 
   const orderedViews = viewsConfig
     .filter(vc => vc.visible)
@@ -107,7 +163,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
       <header className="app-header">
         <button className="mob-menu-btn" onClick={() => setSidebarOpen(s => !s)} aria-label="Menu">☰</button>
         <div className="logo">Nexar</div>
-        <button className="mob-hide"
+        <button id="tour-categories" className="mob-hide"
           onClick={() => setCatModal(true)}
           style={{
             flexShrink: 0, padding: '5px 13px', fontSize: 13, cursor: 'pointer',
@@ -118,7 +174,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
           }}>
           {t('header.categories_btn')}
         </button>
-        <nav className="app-nav">
+        <nav id="tour-nav" className="app-nav">
           {orderedViews.map(v => (
             <button key={v.id} className={curView === v.id ? 'active' : ''}
               onClick={() => { setCurView(v.id); setSidebarOpen(false); }}>
@@ -126,11 +182,14 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
             </button>
           ))}
         </nav>
-        <ViewHint viewId={curView} />
+        <ViewHint
+          viewId={curView}
+          onReplayTour={hasViewTour(curView) ? () => startViewTour(curView) : undefined}
+        />
         <GlobalSearch onOpen={openPanel} />
         <div className="header-acts">
-          <button className="btn-sm mob-hide" onClick={() => setSettingsOpen(true)} title={t('settings.title')}>⚙</button>
-          <button className="mob-hide"
+          <button id="tour-settings" className="btn-sm mob-hide" onClick={() => setSettingsOpen(true)} title={t('settings.title')}>⚙</button>
+          <button id="tour-initiative" className="mob-hide"
             onClick={() => setInitOpen(v => !v)}
             style={{
               flexShrink: 0, padding: '5px 13px', fontSize: 13, cursor: 'pointer',
@@ -150,7 +209,7 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
 
       {sidebarOpen && <div className="sb-overlay" onClick={() => setSidebarOpen(false)} />}
 
-      <aside className={`sidebar ${sidebarOpen ? 'mob-open' : ''}`}>
+      <aside id="tour-sidebar" className={`sidebar ${sidebarOpen ? 'mob-open' : ''}`}>
         <Sidebar
           onSelectElement={(id) => { openPanel('element', id); setSidebarOpen(false); }}
           activeId={panel?.type === 'element' ? panel.id : null}
@@ -207,9 +266,16 @@ export default function AppShell({ user, worldId, worldName, onChangeWorld }) {
           viewsConfig={viewsConfig}
           onViewsConfigChange={handleViewsConfigChange}
           onClose={() => setSettingsOpen(false)}
+          onStartTour={() => { setSettingsOpen(false); setTimeout(startTour, 150); }}
         />
       )}
       {toast && <Toast message={toast} />}
+      {showOnboarding && (
+        <OnboardingModal
+          onClose={() => setShowOnboarding(false)}
+          onStartTour={startTour}
+        />
+      )}
     </div>
   );
 }

@@ -24,7 +24,7 @@ function Toggle({ on, onToggle, disabled }) {
   );
 }
 
-export default function SettingsModal({ views, viewsConfig, onViewsConfigChange, onClose }) {
+export default function SettingsModal({ views, viewsConfig, onViewsConfigChange, onClose, onStartTour }) {
   const { t, i18n } = useTranslation();
   const [localConfig, setLocalConfig] = useState(viewsConfig);
   const [draggingId,  setDraggingId]  = useState(null);
@@ -93,6 +93,21 @@ export default function SettingsModal({ views, viewsConfig, onViewsConfigChange,
             ))}
           </div>
         </div>
+
+        {/* Tour guidato */}
+        {onStartTour && (
+          <div className="fg">
+            <button type="button" onClick={onStartTour} style={{
+              width: '100%', padding: '9px 12px', fontSize: 14, cursor: 'pointer',
+              fontFamily: "'Crimson Pro', serif",
+              background: 'var(--surface2)', border: '1px solid var(--border)',
+              color: 'var(--text-muted)', borderRadius: 'var(--r)',
+              transition: 'all .15s', textAlign: 'left',
+            }}>
+              {t('ob.tour_restart')}
+            </button>
+          </div>
+        )}
 
         {/* Viste */}
         <div className="fg" style={{ marginBottom: 0 }}>

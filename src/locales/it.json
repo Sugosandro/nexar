@@ -206,8 +206,10 @@
     "search_browse": "Cerca o sfoglia…",
     "select":        "— Seleziona —",
     "none_f":        "— Nessuna —",
-    "name_lbl":      "Nome",
-    "desc_lbl":      "Descrizione"
+    "name_lbl":          "Nome",
+    "desc_lbl":          "Descrizione",
+    "hint_btn":          "?",
+    "tour_replay_btn":   "▶ Tutorial"
   },
   "cat": {
     "title":             "⚙ Gestione Categorie",
@@ -700,7 +702,20 @@
     "dying":              "Morente",
     "hp_edit_title":      "Clicca per modificare i PF correnti",
     "ally":               "Alleato",
-    "enemy":              "Nemico"
+    "enemy":              "Nemico",
+    "hint_title":         "Tracker Iniziativa",
+    "hint_desc":          "Gestisci i turni di combattimento in tempo reale durante la sessione.",
+    "hint_b1":            "Clicca la bolla iniziativa per cambiare lato (alleato/nemico)",
+    "hint_b2":            "Clicca i PF per modificarli; la barra colorata mostra lo stato di salute",
+    "hint_b3":            "Espandi un combattente per gestire condizioni e tiri salvezza dalla morte",
+    "tour_s1_title":      "Navigazione turni",
+    "tour_s1_desc":       "Usa ◀ Avanti ▶ per avanzare tra i turni. Il round aumenta automaticamente quando si completa un giro. 🔄 resetta il combattimento.",
+    "tour_s2_title":      "Aggiungi combattenti",
+    "tour_s2_desc":       "Cerca personaggi dal tuo mondo, oppure inserisci nome, iniziativa e PF manualmente. Usa 🎲 per tirare l'iniziativa con modificatore.",
+    "tour_s3_title":      "Bolla iniziativa",
+    "tour_s3_desc":       "Clicca la bolla con il numero per passare il combattente da Alleato (blu) a Nemico (rosso). Utile per tenere traccia di chi è dalla tua parte.",
+    "tour_s4_title":      "PF e condizioni",
+    "tour_s4_desc":       "Clicca i PF per modificarli direttamente. Espandi un combattente con la freccia per gestire condizioni (Avvelenato, Stordito…) e tiri salvezza dalla morte."
   },
   "rumors": {
     "title":            "Rumor e Voci",
@@ -937,5 +952,39 @@
     "toast_imported":  "✓ {{count}} tavole importate",
     "toast_import_err":"⚠ File non valido — usa un JSON esportato da Nexar",
     "confirm_delete":  "Eliminare la tavola \"{{title}}\"?"
+  },
+  "ob": {
+    "title":      "Benvenuto in Nexar",
+    "subtitle":   "Il tuo world builder per campagne di gioco di ruolo",
+    "f1_title":   "Mondo & Elementi",
+    "f1_desc":    "Il database centrale: personaggi, luoghi, oggetti e creature del tuo universo",
+    "f2_title":   "Timeline & Sessioni",
+    "f2_desc":    "Traccia eventi storici, pianifica e documenta ogni sessione di gioco",
+    "f3_title":   "Mappa & Connessioni",
+    "f3_desc":    "Visualizza il mondo geograficamente e mappa le relazioni tra elementi",
+    "f4_title":   "Fazioni, Magia & Archi",
+    "f4_desc":    "Organizzazioni di potere, sistemi magici e trame narrative della campagna",
+    "f5_title":   "Strumenti da Tavolo",
+    "f5_desc":    "Tracker iniziativa, handout per i giocatori e tavole casuali ponderate",
+    "tour_btn":   "🗺 Fai il tour guidato",
+    "skip_btn":   "Inizia subito",
+    "tour_restart":"↺ Ripeti il tour guidato"
+  },
+  "tour": {
+    "next":     "Avanti →",
+    "prev":     "← Indietro",
+    "done":     "Fatto ✓",
+    "s1_title": "Benvenuto in Nexar",
+    "s1_desc":  "Il tuo world builder per campagne GdR. Esploriamo insieme i punti principali.",
+    "s2_title": "Navigazione",
+    "s2_desc":  "Usa questi pulsanti per spostarti tra le viste disponibili. Puoi personalizzarne l'ordine nelle impostazioni ⚙.",
+    "s3_title": "Categorie",
+    "s3_desc":  "Crea e gestisci i tipi di elemento personalizzati: personaggi, luoghi, oggetti e altro.",
+    "s4_title": "Tracker Iniziativa",
+    "s4_desc":  "Durante i combattimenti gestisci ordine di turno, PF e condizioni di ogni combattente.",
+    "s5_title": "Impostazioni",
+    "s5_desc":  "Personalizza lingua e ordine delle viste. Puoi ripetere questo tour in qualsiasi momento.",
+    "s6_title": "Barra Laterale",
+    "s6_desc":  "Sfoglia e filtra tutti gli elementi del mondo. Clicca su uno per aprire il pannello dettaglio."
   }
 }

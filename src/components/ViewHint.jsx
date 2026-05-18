@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export default function ViewHint({ viewId }) {
+export default function ViewHint({ viewId, onReplayTour }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pos,  setPos]  = useState({ top: 0, left: 0 });
@@ -95,6 +95,21 @@ export default function ViewHint({ viewId }) {
                 </li>
               ))}
             </ul>
+          )}
+
+          {onReplayTour && (
+            <button
+              onClick={() => { setOpen(false); onReplayTour(); }}
+              style={{
+                marginTop: 12, width: '100%', padding: '7px 10px', fontSize: 12,
+                cursor: 'pointer', background: 'var(--surface2)',
+                border: '1px solid var(--border)', color: 'var(--text-muted)',
+                borderRadius: 'var(--r)', transition: 'all .15s',
+                fontFamily: "'Crimson Pro', serif",
+              }}
+            >
+              {t('common.tour_replay_btn', { defaultValue: '▶ Tutorial' })}
+            </button>
           )}
         </div>
       )}

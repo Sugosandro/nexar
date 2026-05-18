@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
+import { driver } from 'driver.js';
 
 function rollD20() { return Math.floor(Math.random() * 20) + 1; }
 
@@ -55,6 +56,9 @@ export default function InitiativeTracker({ open, onClose }) {
   const [cOpen,  setCOpen]  = useState(false);
   const [editHpId,  setEditHpId]  = useState(null);
   const [editHpVal, setEditHpVal] = useState('');
+  const [hintOpen,  setHintOpen]  = useState(false);
+  const hintBtnRef = useRef();
+  const hintPanelRef = useRef();
 
   const lang = i18n.language?.startsWith('it') ? 'it' : 'en';
   const condLabel = (cond) => cond[lang] || cond.it;
@@ -174,6 +178,61 @@ export default function InitiativeTracker({ open, onClose }) {
     setCombatants([]); setRound(1); setCurrentId(null); setExpandedId(null);
   };
 
+  const startTrackerTour = () => {
+    setHintOpen(false);
+    const driverObj = driver({
+      showProgress: true,
+      progressText: '{{current}} / {{total}}',
+      nextBtnText: t('tour.next'),
+      prevBtnText: t('tour.prev'),
+      doneBtnText: t('tour.done'),
+      overlayColor: 'rgba(0,0,0,.75)',
+      stagePadding: 8,
+      stageRadius: 6,
+      steps: [
+        {
+          element: '#init-tour-header',
+          popover: { title: t('init.tour_s1_title'), description: t('init.tour_s1_desc'), side: 'left', align: 'start' },
+        },
+        {
+          element: '#init-tour-form',
+          popover: { title: t('init.tour_s2_title'), description: t('init.tour_s2_desc'), side: 'top' },
+        },
+        {
+          popover: { title: t('init.tour_s3_title'), description: t('init.tour_s3_desc') },
+        },
+        {
+          popover: { title: t('init.tour_s4_title'), description: t('init.tour_s4_desc') },
+        },
+      ].map(step => step.element && !document.querySelector(step.element) ? { popover: step.popover } : step),
+    });
+    driverObj.drive();
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const key = 'nexar-tour-view-initiative';
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    const timer = setTimeout(startTrackerTour, 700);
+    return () => clearTimeout(timer);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!hintOpen) return;
+    const onKey   = (e) => { if (e.key === 'Escape') setHintOpen(false); };
+    const onMouse = (e) => {
+      if (!hintBtnRef.current?.contains(e.target) && !hintPanelRef.current?.contains(e.target))
+        setHintOpen(false);
+    };
+    document.addEventListener('keydown',   onKey);
+    document.addEventListener('mousedown', onMouse);
+    return () => {
+      document.removeEventListener('keydown',   onKey);
+      document.removeEventListener('mousedown', onMouse);
+    };
+  }, [hintOpen]);
+
   if (!open && !minimized) return null;
 
   const cats    = allCats();
@@ -215,7 +274,7 @@ export default function InitiativeTracker({ open, onClose }) {
     <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 900, width: 'min(400px, 100vw)', display: 'flex', flexDirection: 'column', background: 'var(--surface)', borderLeft: '2px solid var(--gold-dim)', boxShadow: '-4px 0 24px rgba(0,0,0,.6)' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 12px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0 }}>
+      <div id="init-tour-header" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 12px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0, position: 'relative' }}>
         <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 13, color: 'var(--gold)', flex: 1 }}>
           ⚔ {t('init.title')} — {t('init.round_lbl')} {round}
         </span>
@@ -223,10 +282,57 @@ export default function InitiativeTracker({ open, onClose }) {
         {btn(t('init.next_btn') + ' ▶', nextTurn, { active: active.length > 0, wide: true })}
         <button onClick={reset} title={t('init.reset_btn')}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 14, cursor: 'pointer' }}>🔄</button>
+        <button
+          ref={hintBtnRef}
+          onClick={() => setHintOpen(v => !v)}
+          title={t('common.hint_btn')}
+          style={{
+            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+            border: `1px solid ${hintOpen ? 'var(--gold-dim)' : 'var(--border)'}`,
+            background: hintOpen ? 'var(--gold-glow)' : 'var(--surface)',
+            color: hintOpen ? 'var(--gold)' : 'var(--text-muted)',
+            fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all .15s',
+          }}
+        >?</button>
         <button onClick={() => setMinimized(true)}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer', lineHeight: 1 }}>—</button>
         <button onClick={() => { setMinimized(false); onClose(); }}
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+
+        {hintOpen && (
+          <div ref={hintPanelRef} style={{
+            position: 'absolute', top: 'calc(100% + 6px)', right: 8,
+            width: 260, zIndex: 10001,
+            background: 'var(--surface3)', border: '1px solid var(--gold-dim)',
+            borderRadius: 'var(--r)', padding: '12px 14px',
+            boxShadow: '0 8px 28px rgba(0,0,0,.6)',
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', marginBottom: 6, fontFamily: "'Crimson Pro', serif" }}>
+              {t('init.hint_title')}
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.5 }}>
+              {t('init.hint_desc')}
+            </p>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {[t('init.hint_b1'), t('init.hint_b2'), t('init.hint_b3')].filter(Boolean).map((b, i) => (
+                <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: 'var(--text)', lineHeight: 1.45 }}>
+                  <span style={{ color: 'var(--gold-dim)', flexShrink: 0, marginTop: 1 }}>◆</span>
+                  {b}
+                </li>
+              ))}
+            </ul>
+            <button onClick={startTrackerTour} style={{
+              marginTop: 10, width: '100%', padding: '6px 10px', fontSize: 11,
+              cursor: 'pointer', background: 'var(--surface2)',
+              border: '1px solid var(--border)', color: 'var(--text-muted)',
+              borderRadius: 'var(--r)', fontFamily: "'Crimson Pro', serif",
+            }}>
+              {t('common.tour_replay_btn')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Combatant list */}
@@ -464,7 +570,7 @@ export default function InitiativeTracker({ open, onClose }) {
       )}
 
       {/* Add form */}
-      <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0 }}>
+      <div id="init-tour-form" style={{ padding: '10px 12px', borderTop: '1px solid var(--border)', background: 'var(--surface2)', flexShrink: 0 }}>
         <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 7 }}>
           {t('init.add_lbl')}
         </div>

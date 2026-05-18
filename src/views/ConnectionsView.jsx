@@ -31,6 +31,8 @@ function buildGraph(elements, arcs, fazioni, allCats) {
       const relColor = r.type === 'enemy' ? '#4a1515' : r.type === 'ally' ? '#1a3820' : '#2a2820';
       edges.push({ from: `faz-${f.id}`, to: `faz-${r.fazId}`, type: 'rel', color: relColor });
     });
+    if (f.parentId && fazioni.find(p => p.id === f.parentId))
+      edges.push({ from: `faz-${f.id}`, to: `faz-${f.parentId}`, type: 'parent', color: '#6a5020' });
   });
 
   return { nodes, edges };

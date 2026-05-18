@@ -206,8 +206,10 @@
     "search_browse": "Search or browse…",
     "select":        "— Select —",
     "none_f":        "— None —",
-    "name_lbl":      "Name",
-    "desc_lbl":      "Description"
+    "name_lbl":          "Name",
+    "desc_lbl":          "Description",
+    "hint_btn":          "?",
+    "tour_replay_btn":   "▶ Tutorial"
   },
   "cat": {
     "title":             "⚙ Manage Categories",
@@ -700,7 +702,20 @@
     "dying":              "Dying",
     "hp_edit_title":      "Click to edit current HP",
     "ally":               "Ally",
-    "enemy":              "Enemy"
+    "enemy":              "Enemy",
+    "hint_title":         "Initiative Tracker",
+    "hint_desc":          "Manage combat turns in real time during your session.",
+    "hint_b1":            "Click the initiative bubble to toggle side (ally/enemy)",
+    "hint_b2":            "Click HP to edit them; the colored bar shows health status",
+    "hint_b3":            "Expand a combatant to manage conditions and death saving throws",
+    "tour_s1_title":      "Turn navigation",
+    "tour_s1_desc":       "Use ◀ Next ▶ to advance turns. The round counter increases automatically when a full cycle completes. 🔄 resets combat.",
+    "tour_s2_title":      "Add combatants",
+    "tour_s2_desc":       "Search characters from your world, or enter name, initiative and HP manually. Use 🎲 to roll initiative with modifier.",
+    "tour_s3_title":      "Initiative bubble",
+    "tour_s3_desc":       "Click the number bubble to toggle the combatant from Ally (blue) to Enemy (red). Useful for tracking which side everyone is on.",
+    "tour_s4_title":      "HP & conditions",
+    "tour_s4_desc":       "Click HP to edit them directly. Expand a combatant with the arrow to manage conditions (Poisoned, Stunned…) and death saving throws."
   },
   "rumors": {
     "title":            "Rumors & Whispers",
@@ -937,5 +952,39 @@
     "toast_imported":  "✓ {{count}} tables imported",
     "toast_import_err":"⚠ Invalid file — use a JSON exported from Nexar",
     "confirm_delete":  "Delete table \"{{title}}\"?"
+  },
+  "ob": {
+    "title":      "Welcome to Nexar",
+    "subtitle":   "Your world builder for tabletop RPG campaigns",
+    "f1_title":   "World & Elements",
+    "f1_desc":    "The central database: characters, places, objects and creatures of your universe",
+    "f2_title":   "Timeline & Sessions",
+    "f2_desc":    "Track historical events, plan and document every game session",
+    "f3_title":   "Map & Connections",
+    "f3_desc":    "Visualize your world geographically and map relationships between elements",
+    "f4_title":   "Factions, Magic & Arcs",
+    "f4_desc":    "Power organizations, magic systems and narrative storylines",
+    "f5_title":   "Table Tools",
+    "f5_desc":    "Initiative tracker, player handouts and weighted random tables",
+    "tour_btn":   "🗺 Take the guided tour",
+    "skip_btn":   "Start exploring",
+    "tour_restart":"↺ Replay guided tour"
+  },
+  "tour": {
+    "next":     "Next →",
+    "prev":     "← Back",
+    "done":     "Done ✓",
+    "s1_title": "Welcome to Nexar",
+    "s1_desc":  "Your world builder for RPG campaigns. Let's explore the main features together.",
+    "s2_title": "Navigation",
+    "s2_desc":  "Use these buttons to switch between the available views. You can customize their order in settings ⚙.",
+    "s3_title": "Categories",
+    "s3_desc":  "Create and manage custom element types: characters, places, objects and more.",
+    "s4_title": "Initiative Tracker",
+    "s4_desc":  "During combat, manage turn order, HP and conditions for every combatant.",
+    "s5_title": "Settings",
+    "s5_desc":  "Customize language and view order. You can replay this tour at any time.",
+    "s6_title": "Sidebar",
+    "s6_desc":  "Browse and filter all world elements. Click one to open the detail panel."
   }
 }

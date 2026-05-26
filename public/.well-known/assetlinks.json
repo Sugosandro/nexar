@@ -3,9 +3,9 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "PLACEHOLDER_PACKAGE_NAME",
+      "package_name": "com.vercel.nexar",
       "sha256_cert_fingerprints": [
-        "PLACEHOLDER_SHA256_FINGERPRINT"
+        "BD:4A:EB:67:05:EA:61:F7:09:AF:B1:53:18:F4:C5:16:66:14:72:26:49:50:5A:AD:44:42:D6:03:1B:DE:F1:10"
       ]
     }
   }

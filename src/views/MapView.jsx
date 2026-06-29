@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorld } from '../hooks/useWorld';
 import { getMap, saveMap } from '../firebase/db';
@@ -463,15 +463,35 @@ export default function MapView({ onOpenElement }) {
     await save(mapImage, updated);
   };
 
+  // Posizioni spazio-temporali di un elemento: derivate dagli EVENTI a cui è
+  // collegato (eventEls + eventPlace) — la fonte primaria — con fallback sulle
+  // vecchie voci di changelog ("Presente durante:") per i mondi pre-esistenti.
+  const getElPositions = useCallback((el) => {
+    const fromEvents = elements
+      .filter(e => e.cat === 'event' && e.date && e.eventPlace && (e.eventEls || []).includes(el.id))
+      .map(e => ({ date: e.date, placeId: e.eventPlace, text: e.name }));
+    const fromChangelog = (el.changelog || [])
+      .filter(c => c.date && c.placeId)
+      .map(c => ({ date: c.date, placeId: c.placeId, text: c.text }));
+    // Dedup per date+luogo: evita doppioni nei mondi che hanno sia il link
+    // all'evento sia la vecchia voce di changelog per la stessa presenza.
+    const seen = new Set();
+    return [...fromEvents, ...fromChangelog].filter(p => {
+      const k = `${p.date}|${p.placeId}`;
+      if (seen.has(k)) return false;
+      seen.add(k); return true;
+    });
+  }, [elements]);
+
   const getElementsAtPoiAtTime = (poi, date) => {
     if (!poi.elementId) return [];
     const filterN = parseDate(date);
     if (!filterN) return [];
     return elements.filter(el => {
-      if (el.cat === 'place') return false;
-      const changelog = (el.changelog || []).filter(c => c.date && c.placeId);
-      if (!changelog.length) return false;
-      const relevant = changelog
+      if (el.cat === 'place' || el.cat === 'event') return false;
+      const positions = getElPositions(el);
+      if (!positions.length) return false;
+      const relevant = positions
         .filter(c => parseDate(c.date) <= filterN)
         .sort((a, b) => parseDate(b.date) - parseDate(a.date));
       if (!relevant.length) return false;
@@ -492,7 +512,7 @@ export default function MapView({ onOpenElement }) {
       const el = elements.find(e => e.id === elId);
       if (!el) return;
       const filterN = timeFilter ? parseDate(timeFilter) : null;
-      const entries = (el.changelog || [])
+      const entries = getElPositions(el)
         .filter(c => c.placeId && (!filterN || parseDate(c.date) <= filterN))
         .sort((a, b) => parseDate(a.date) - parseDate(b.date));
       const color = getTrackColor(trackIndex++);
@@ -503,7 +523,7 @@ export default function MapView({ onOpenElement }) {
       if (positions.length) results.push({ elId, color, elName: el.name, positions });
     });
     return results;
-  }, [trackEls, elements, pois, timeFilter]);
+  }, [trackEls, elements, pois, timeFilter, getElPositions]);
 
   if (loading) return <div className="view"><div className="view-loading"><span className="spin">✨</span> {t('map.loading')}</div></div>;
 
